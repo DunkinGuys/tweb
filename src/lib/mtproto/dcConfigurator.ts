@@ -36,6 +36,21 @@ const PREMIUM_SUFFIX = '_premium';
 const RETRY_TIMEOUT_CLIENT = 3000;
 const RETRY_TIMEOUT_DOWNLOAD = 3000;
 
+function applyTemplate(
+  template: string,
+  dcId: DcId,
+  connectionType: ConnectionType,
+  premium?: boolean
+) {
+  const suffix = getTelegramConnectionSuffix(connectionType);
+  let result = template.replace(/\{dcId\}/g, String(dcId));
+  result = result.replace(/\{connectionType\}/g, connectionType);
+  result = result.replace(/\{suffix\}/g, suffix);
+  result = result.replace(/\{premium\}/g, premium ? PREMIUM_SUFFIX : '');
+  result = result.replace(/\{testSuffix\}/g, TEST_SUFFIX);
+  return result;
+}
+
 export function getTelegramConnectionSuffix(connectionType: ConnectionType) {
   return connectionType === 'client' ? '' : '-1';
 }
@@ -43,6 +58,11 @@ export function getTelegramConnectionSuffix(connectionType: ConnectionType) {
 export function constructTelegramWebSocketUrl(dcId: DcId, connectionType: ConnectionType, premium?: boolean) {
   if(!import.meta.env.VITE_MTPROTO_HAS_WS) {
     return;
+  }
+
+  const customUrl = import.meta.env.VITE_MTPROTO_CUSTOM_WS_URL;
+  if(customUrl) {
+    return applyTemplate(customUrl, dcId, connectionType, premium);
   }
 
   const suffix = getTelegramConnectionSuffix(connectionType);
@@ -97,7 +117,10 @@ export class DcConfigurator {
     }
 
     let chosenServer: string;
-    if(Modes.ssl || !Modes.http) {
+    const customUrl = import.meta.env.VITE_MTPROTO_CUSTOM_HTTP_URL;
+    if(customUrl) {
+      chosenServer = applyTemplate(customUrl, dcId, connectionType, premium);
+    } else if(Modes.ssl || !Modes.http) {
       const suffix = getTelegramConnectionSuffix(connectionType);
       const subdomain = this.sslSubdomains[dcId - 1] + suffix;
       const path = Modes.test ? 'apiw_test1' : 'apiw1';

@@ -15,6 +15,10 @@ interface ImportMetaEnv {
   readonly VITE_MTPROTO_AUTO: string;
   readonly VITE_MTPROTO_HAS_HTTP: string;
   readonly VITE_MTPROTO_HAS_WS: string;
+  readonly VITE_MTPROTO_CUSTOM_WS_URL: string;
+  readonly VITE_MTPROTO_CUSTOM_HTTP_URL: string;
+  readonly VITE_MTPROTO_CUSTOM_RSA_PUBLIC_KEYS: string;
+  readonly VITE_MTPROTO_BASE_DC_ID: string;
   readonly VITE_SAFARI_PROXY_WEBSOCKET: string;
 }
 

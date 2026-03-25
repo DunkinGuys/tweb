@@ -16,6 +16,7 @@ export const MAIN_DOMAINS = ['web.telegram.org', 'webk.telegram.org'];
 export const DEFAULT_BACKGROUND_SLUG = 'pattern';
 
 const threads = Math.min(4, navigator.hardwareConcurrency ?? 4);
+const defaultBaseDcId = +(import.meta.env.VITE_MTPROTO_BASE_DC_ID || (import.meta.env.VITE_MTPROTO_CUSTOM_WS_URL ? 1 : 2)) as TrueDcId;
 
 const App = {
   id: +import.meta.env.VITE_API_ID,
@@ -29,7 +30,7 @@ const App = {
   langPack: 'webk',
   langPackCode: 'en',
   domains: MAIN_DOMAINS,
-  baseDcId: 2 as TrueDcId,
+  baseDcId: defaultBaseDcId,
   isMainDomain: MAIN_DOMAINS.includes(location.hostname),
   suffix: 'K',
   threads,

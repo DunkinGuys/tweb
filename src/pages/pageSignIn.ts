@@ -264,7 +264,19 @@ const onFirstMount = () => {
       }
 
       // console.log('woohoo', nearestDcResult, country);
-    })// .catch(tryAgain);
+    }).catch((err) => {
+      console.warn('help.getNearestDc failed, falling back to locale country', err);
+
+      if(countryInputField.value.length || telInputField.value.length) {
+        return;
+      }
+
+      const localeRegion = navigator.language.split('-')[1]?.toUpperCase();
+      if(localeRegion) {
+        countryInputField.selectCountryByIso2(localeRegion);
+        telInputField.simulateInputEvent();
+      }
+    });// .catch(tryAgain);
   };
 
   if(!IS_TOUCH_SUPPORTED) {

@@ -21,6 +21,22 @@ export type RSAPublicKeyHex = {
   exponent: string
 };
 
+function getCustomPublicKeys(): RSAPublicKeyHex[] {
+  const raw = import.meta.env.VITE_MTPROTO_CUSTOM_RSA_PUBLIC_KEYS;
+  if(!raw) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    const keys = Array.isArray(parsed) ? parsed : [parsed];
+    return keys.filter((key): key is RSAPublicKeyHex => !!key?.modulus && !!key?.exponent);
+  } catch(err) {
+    console.error('[MT] Failed to parse VITE_MTPROTO_CUSTOM_RSA_PUBLIC_KEYS', err);
+    return [];
+  }
+}
+
 export class RSAKeysManager {
   /**
    *  Server public key, obtained from here: https://core.telegram.org/api/obtaining_api_id
@@ -86,6 +102,11 @@ export class RSAKeysManager {
   constructor() {
     if(Modes.test) {
       this.publisKeysHex = this.testPublicKeysHex;
+    }
+
+    const customPublicKeys = getCustomPublicKeys();
+    if(customPublicKeys.length) {
+      this.publisKeysHex = [...customPublicKeys, ...this.publisKeysHex];
     }
   }
 

@@ -55,6 +55,29 @@ export class AppStickersManager extends AppManager {
     emojis: SearchIndex<DocId>
   }>;
 
+  private ignoreBootstrapError = (error: unknown) => {
+    if(error === 'NO_STICKERS') {
+      return;
+    }
+
+    let text = '';
+    if(typeof error === 'string') {
+      text = error;
+    } else if(error && typeof error === 'object' && 'type' in error && typeof error.type === 'string') {
+      text = error.type;
+    } else if(error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+      text = error.message;
+    } else if(error && typeof error === 'object' && 'errorMessage' in error && typeof error.errorMessage === 'string') {
+      text = error.errorMessage;
+    }
+
+    if(text.includes('ERR_ENTERPRISE_IS_BLOCKED')) {
+      return;
+    }
+
+    throw error;
+  };
+
   protected after() {
     this.storage = new AppStorage(getDatabaseState(this.getAccountNumber()), 'stickerSets');
     this.clear(true);
@@ -74,7 +97,7 @@ export class AppStickersManager extends AppManager {
       if(!this.getGreetingStickersPromise) {
         this.getGreetingStickersTimeout ??= ctx.setTimeout(() => {
           this.getGreetingStickersTimeout = undefined;
-          this.getGreetingSticker(true);
+          this.getGreetingSticker(true).catch(this.ignoreBootstrapError);
         }, 5000);
       }
 
