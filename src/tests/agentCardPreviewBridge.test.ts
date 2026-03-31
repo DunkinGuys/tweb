@@ -50,7 +50,7 @@ describe('agentCardPreviewBridge', () => {
       body: 'Body text',
       sourceProposalId: 'proposal_123',
       actions: [
-        {id: 'proposal_123:action:1', type: 'copy', label: '답장 복사', copy: 'hello'},
+        {id: 'proposal_123:action:1', type: 'copy', label: '답장 복사', copy: 'hello'}
       ]
     });
 
@@ -67,9 +67,9 @@ describe('agentCardPreviewBridge', () => {
         {
           id: 'proposal_123:action:1',
           type: 'copy',
-          label: '답장 복사',
+          label: '답장 복사'
         }
-      ],
+      ]
     });
   });
 
@@ -79,12 +79,12 @@ describe('agentCardPreviewBridge', () => {
     renderAgentCardPreview(mountPoint, {
       title: 'Gateway Proposal',
       status: 'PROPOSED',
-      sourceProposalId: 'proposal_456',
+      sourceProposalId: 'proposal_456'
     }, 'agent-gateway');
 
     expect(getCurrentAgentCardPreviewSnapshot(mountPoint)?.lifecycleActions).toEqual([
       {action: 'approve', label: '답장 초안 받기', disabled: false},
-      {action: 'cancel', label: '닫기', disabled: false},
+      {action: 'cancel', label: '닫기', disabled: false}
     ]);
     expect(getCurrentAgentCardPreviewSnapshot(mountPoint)?.followUpActions).toEqual([]);
   });

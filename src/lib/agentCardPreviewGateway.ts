@@ -72,7 +72,7 @@ export function getAgentCardPreviewRuntimeContext() {
 
   if(import.meta.env.VITE_AGENT_CARD_RUNTIME_KAKAO_ID) {
     return {
-      kakaoId: import.meta.env.VITE_AGENT_CARD_RUNTIME_KAKAO_ID,
+      kakaoId: import.meta.env.VITE_AGENT_CARD_RUNTIME_KAKAO_ID
     };
   }
 
@@ -96,12 +96,12 @@ export async function requestAgentCardPreviewProposal(
   const response = await fetch(`${baseUrl}${PROPOSAL_PATH}`, {
     method: 'POST',
     headers: {
-      'content-type': 'application/json',
+      'content-type': 'application/json'
     },
     body: JSON.stringify({
       inputText: trimmedInputText,
-      ...(runtimeContext ? {runtimeContext} : {}),
-    }),
+      ...(runtimeContext ? {runtimeContext} : {})
+    })
   });
 
   const payload = await parseJsonResponse<AgentCardPreviewProposalResponse>(response);
@@ -119,7 +119,7 @@ export async function showAgentCardPreviewForCurrentChat(
   const response = await requestAgentCardPreviewProposal(inputText, runtimeContext);
   const previewPayload: AgentCardPreviewPayload = {
     ...response.payload,
-    sourceProposalId: response.payload.sourceProposalId || response.proposalId,
+    sourceProposalId: response.payload.sourceProposalId || response.proposalId
   };
 
   const ok = pushAgentCardPreviewToCurrentChat(previewPayload, response.source || 'agent-gateway');
@@ -129,7 +129,7 @@ export async function showAgentCardPreviewForCurrentChat(
 
   return {
     ...response,
-    payload: previewPayload,
+    payload: previewPayload
   };
 }
 
@@ -158,7 +158,7 @@ export async function requestAgentCardPreviewEvent(
   const response = await fetch(`${baseUrl}${EVENT_PATH}`, {
     method: 'POST',
     headers: {
-      'content-type': 'application/json',
+      'content-type': 'application/json'
     },
     body: JSON.stringify({
       proposalId: trimmedProposalId,
@@ -167,8 +167,8 @@ export async function requestAgentCardPreviewEvent(
       ...(chatContext || {}),
       ...(options?.actionId ? {actionId: options.actionId} : {}),
       ...(options?.actionType ? {actionType: options.actionType} : {}),
-      ...(options?.actionLabel ? {actionLabel: options.actionLabel} : {}),
-    }),
+      ...(options?.actionLabel ? {actionLabel: options.actionLabel} : {})
+    })
   });
 
   const payload = await parseJsonResponse<AgentCardPreviewEventResponse>(response);
@@ -305,7 +305,7 @@ function getCurrentChatContext() {
   return {
     peerId: chat.peerId,
     threadId: chat.threadId ?? null,
-    monoforumThreadId: chat.monoforumThreadId ?? null,
+    monoforumThreadId: chat.monoforumThreadId ?? null
   };
 }
 
@@ -320,7 +320,7 @@ function putTextIntoCurrentComposer(text: string) {
   input.dispatchEvent(new InputEvent('input', {
     bubbles: true,
     inputType: 'insertText',
-    data: text,
+    data: text
   }));
   focusCurrentAgentCardPreviewComposer();
 }

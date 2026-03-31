@@ -132,7 +132,7 @@ export function renderAgentCardPreview(
     display: 'none',
     fontSize: '12px',
     lineHeight: '1.4',
-    opacity: '0.82',
+    opacity: '0.82'
   });
   lifecycleNote.dataset.role = 'lifecycle-note';
 
@@ -179,12 +179,12 @@ export function renderAgentCardPreview(
   if(shouldRenderLifecycleControls(payload, source)) {
     lifecycle.append(
       createLifecycleButton('approve', '답장 초안 받기', async(button) => {
-        const {approveAgentCardPreviewForCurrentChat} = await import('@lib/agentCardPreviewGateway');
+        const {approveAgentCardPreviewForCurrentChat} = await import('./agentCardPreviewGateway');
         const proposalId = payload.sourceProposalId!;
         setLifecycleButtonBusy(button, true, '초안 준비 중...');
         try {
           const replyPayload = await approveAgentCardPreviewForCurrentChat(proposalId, {
-            applyReplyToComposer: true,
+            applyReplyToComposer: true
           });
           const replySummary = replyPayload.reply?.summary || '답장 초안을 입력창에 채워뒀어';
           root.dataset.status = 'APPROVED';
@@ -193,13 +193,13 @@ export function renderAgentCardPreview(
           button.dataset.lifecycleCompleted = 'true';
           lifecycle.replaceChildren();
           lifecycle.style.display = 'none';
-          lifecycleNote.textContent = replyPayload.reply?.text
-            ? '답장 초안을 입력창에 넣어뒀어. 그대로 보내거나 조금 다듬으면 돼.'
-            : '승인 처리는 끝났어.';
+          lifecycleNote.textContent = replyPayload.reply?.text ?
+            '답장 초안을 입력창에 넣어뒀어. 그대로 보내거나 조금 다듬으면 돼.' :
+            '승인 처리는 끝났어.';
           lifecycleNote.style.display = '';
           followUpActions.replaceChildren(
             createFollowUpButton('send', '지금 보내기', async(button) => {
-              const {sendCurrentAgentCardPreviewComposer} = await import('@lib/agentCardPreviewGateway');
+              const {sendCurrentAgentCardPreviewComposer} = await import('./agentCardPreviewGateway');
               setLifecycleButtonBusy(button, true, '보내는 중...');
               try {
                 sendCurrentAgentCardPreviewComposer();
@@ -210,7 +210,7 @@ export function renderAgentCardPreview(
               }
             }),
             createFollowUpButton('edit', '수정하기', async(button) => {
-              const {focusCurrentAgentCardPreviewComposer} = await import('@lib/agentCardPreviewGateway');
+              const {focusCurrentAgentCardPreviewComposer} = await import('./agentCardPreviewGateway');
               setLifecycleButtonBusy(button, true, '입력창 여는 중...');
               try {
                 focusCurrentAgentCardPreviewComposer();
@@ -225,7 +225,7 @@ export function renderAgentCardPreview(
         }
       }),
       createLifecycleButton('cancel', '닫기', async(button) => {
-        const {cancelAgentCardPreviewForCurrentChat} = await import('@lib/agentCardPreviewGateway');
+        const {cancelAgentCardPreviewForCurrentChat} = await import('./agentCardPreviewGateway');
         const proposalId = payload.sourceProposalId!;
         setLifecycleButtonBusy(button, true, '닫는 중...');
         try {
@@ -271,17 +271,17 @@ export function getCurrentAgentCardPreviewSnapshot(mountPoint?: HTMLElement): Ag
   const lifecycleActions = Array.from(root.querySelectorAll<HTMLElement>('[data-lifecycle-action]')).map((action) => ({
     action: action.dataset.lifecycleAction || null,
     label: action.dataset.lifecycleLabel || null,
-    disabled: action.hasAttribute('disabled'),
+    disabled: action.hasAttribute('disabled')
   }));
   const followUpActionItems = Array.from(root.querySelectorAll<HTMLElement>('[data-follow-up-action]')).map((action) => ({
     action: action.dataset.followUpAction || null,
     label: action.dataset.followUpLabel || null,
-    disabled: action.hasAttribute('disabled'),
+    disabled: action.hasAttribute('disabled')
   }));
   const actions = Array.from(root.querySelectorAll<HTMLElement>('[data-action-type]')).map((action) => ({
     id: action.dataset.actionId || null,
     type: action.dataset.actionType || null,
-    label: action.dataset.actionLabel || null,
+    label: action.dataset.actionLabel || null
   }));
 
   return {
@@ -293,7 +293,7 @@ export function getCurrentAgentCardPreviewSnapshot(mountPoint?: HTMLElement): Ag
     sourceProposalId: root.dataset.sourceProposalId || null,
     lifecycleActions,
     followUpActions: followUpActionItems,
-    actions,
+    actions
   };
 }
 

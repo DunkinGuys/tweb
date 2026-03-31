@@ -6,7 +6,7 @@ import {
   getAgentCardPreviewRuntimeContext,
   requestAgentCardPreviewEvent,
   requestAgentCardPreviewProposal,
-  resolveAgentCardPreviewGatewayBaseUrl,
+  resolveAgentCardPreviewGatewayBaseUrl
 } from '@lib/agentCardPreviewGateway';
 
 describe('agentCardPreviewGateway', () => {
@@ -19,14 +19,14 @@ describe('agentCardPreviewGateway', () => {
     vi.restoreAllMocks();
     Object.defineProperty(window, 'location', {
       configurable: true,
-      value: new URL('http://localhost:8080/'),
+      value: new URL('http://localhost:8080/')
     });
   });
 
   afterAll(() => {
     Object.defineProperty(window, 'location', {
       configurable: true,
-      value: originalLocation,
+      value: originalLocation
     });
     globalThis.fetch = originalFetch;
   });
@@ -40,13 +40,13 @@ describe('agentCardPreviewGateway', () => {
     vi.stubEnv('VITE_AGENT_CARD_PREVIEW_GATEWAY_URL', 'http://127.0.0.1:8788/agent-card-preview-proposal');
     window.localStorage.setItem('agent-card-preview-runtime-context', JSON.stringify({
       kakaoId: 'test-kakao-id',
-      platform: 'kakao',
+      platform: 'kakao'
     }));
 
     expect(resolveAgentCardPreviewGatewayBaseUrl()).toBe('http://127.0.0.1:8788');
     expect(getAgentCardPreviewRuntimeContext()).toEqual({
       kakaoId: 'test-kakao-id',
-      platform: 'kakao',
+      platform: 'kakao'
     });
   });
 
@@ -72,13 +72,13 @@ describe('agentCardPreviewGateway', () => {
       source: 'agent-gateway',
       payload: {
         title: '연이가 답장을 준비했어',
-        status: 'PROPOSED',
-      },
+        status: 'PROPOSED'
+      }
     }), {
       status: 200,
       headers: {
-        'content-type': 'application/json',
-      },
+        'content-type': 'application/json'
+      }
     }));
     globalThis.fetch = fetchMock as typeof fetch;
 
@@ -91,9 +91,9 @@ describe('agentCardPreviewGateway', () => {
       body: JSON.stringify({
         inputText: 'hello gateway',
         runtimeContext: {
-          kakaoId: 'kakao-user',
-        },
-      }),
+          kakaoId: 'kakao-user'
+        }
+      })
     }));
   });
 
@@ -101,7 +101,7 @@ describe('agentCardPreviewGateway', () => {
     vi.stubEnv('VITE_AGENT_CARD_RUNTIME_KAKAO_ID', 'env-kakao-id');
 
     expect(getAgentCardPreviewRuntimeContext()).toEqual({
-      kakaoId: 'env-kakao-id',
+      kakaoId: 'env-kakao-id'
     });
   });
 
@@ -114,24 +114,24 @@ describe('agentCardPreviewGateway', () => {
       chat: {
         peerId: 123,
         threadId: 456,
-        monoforumThreadId: 789,
-      },
+        monoforumThreadId: 789
+      }
     };
 
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ok: true}), {status: 200}))
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        ok: true,
-        proposalId: 'proposal_approved',
-        reply: {
-          text: 'reply draft text',
-          summary: 'reply draft summary',
-        },
-      }), {status: 200}));
+    .mockResolvedValueOnce(new Response(JSON.stringify({ok: true}), {status: 200}))
+    .mockResolvedValueOnce(new Response(JSON.stringify({
+      ok: true,
+      proposalId: 'proposal_approved',
+      reply: {
+        text: 'reply draft text',
+        summary: 'reply draft summary'
+      }
+    }), {status: 200}));
     globalThis.fetch = fetchMock as typeof fetch;
 
     const response = await approveAgentCardPreviewForCurrentChat('proposal_approved', {
-      applyReplyToComposer: true,
+      applyReplyToComposer: true
     });
 
     expect(response.reply?.text).toBe('reply draft text');
@@ -142,8 +142,8 @@ describe('agentCardPreviewGateway', () => {
         event: 'approved',
         peerId: 123,
         threadId: 456,
-        monoforumThreadId: 789,
-      }),
+        monoforumThreadId: 789
+      })
     }));
     expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://127.0.0.1:8788/agent-card-preview-replies?proposalId=proposal_approved');
     expect(document.querySelector('.input-message-input')?.textContent).toBe('reply draft text');
@@ -153,19 +153,19 @@ describe('agentCardPreviewGateway', () => {
     vi.stubEnv('VITE_AGENT_CARD_PREVIEW_GATEWAY_URL', 'http://127.0.0.1:8788');
 
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ok: true}), {status: 200}))
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        ok: true,
-        proposalId: 'proposal_cancelled',
-        reply: null,
-      }), {status: 200}))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ok: true}), {status: 200}));
+    .mockResolvedValueOnce(new Response(JSON.stringify({ok: true}), {status: 200}))
+    .mockResolvedValueOnce(new Response(JSON.stringify({
+      ok: true,
+      proposalId: 'proposal_cancelled',
+      reply: null
+    }), {status: 200}))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ok: true}), {status: 200}));
     globalThis.fetch = fetchMock as typeof fetch;
 
     await requestAgentCardPreviewEvent('proposal_cancelled', 'ui_action', {
       actionId: 'proposal_cancelled:action:1',
       actionType: 'copy',
-      actionLabel: '답장 복사',
+      actionLabel: '답장 복사'
     });
     const reply = await fetchAgentCardPreviewReply('proposal_cancelled');
     await cancelAgentCardPreviewForCurrentChat('proposal_cancelled');
@@ -182,8 +182,8 @@ describe('agentCardPreviewGateway', () => {
         monoforumThreadId: 789,
         actionId: 'proposal_cancelled:action:1',
         actionType: 'copy',
-        actionLabel: '답장 복사',
-      }),
+        actionLabel: '답장 복사'
+      })
     }));
     expect(fetchMock).toHaveBeenNthCalledWith(3, 'http://127.0.0.1:8788/agent-card-preview-event', expect.objectContaining({
       method: 'POST',
@@ -193,8 +193,8 @@ describe('agentCardPreviewGateway', () => {
         event: 'cancelled',
         peerId: 123,
         threadId: 456,
-        monoforumThreadId: 789,
-      }),
+        monoforumThreadId: 789
+      })
     }));
   });
 });
