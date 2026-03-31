@@ -1,4 +1,4 @@
-import {renderAgentCardPreview} from '@lib/agentCardPreviewBridge';
+import {getCurrentAgentCardPreviewSnapshot, renderAgentCardPreview} from '@lib/agentCardPreviewBridge';
 
 describe('agentCardPreviewBridge', () => {
   test('renders preview content and actions into the mount point', () => {
@@ -38,5 +38,54 @@ describe('agentCardPreviewBridge', () => {
     expect(mountPoint.textContent).toContain('Second');
     expect(mountPoint.textContent).toContain('Updated');
     expect(mountPoint.textContent).not.toContain('First');
+  });
+
+  test('returns a structured snapshot from the current preview DOM', () => {
+    const mountPoint = document.createElement('div');
+
+    renderAgentCardPreview(mountPoint, {
+      title: 'Snapshot Proof',
+      status: 'PROPOSED',
+      summary: 'Summary text',
+      body: 'Body text',
+      sourceProposalId: 'proposal_123',
+      actions: [
+        {id: 'proposal_123:action:1', type: 'copy', label: '답장 복사', copy: 'hello'},
+      ]
+    });
+
+    expect(getCurrentAgentCardPreviewSnapshot(mountPoint)).toEqual({
+      source: 'agent',
+      title: 'Snapshot Proof',
+      status: 'PROPOSED',
+      summary: 'Summary text',
+      body: 'Body text',
+      sourceProposalId: 'proposal_123',
+      lifecycleActions: [],
+      followUpActions: [],
+      actions: [
+        {
+          id: 'proposal_123:action:1',
+          type: 'copy',
+          label: '답장 복사',
+        }
+      ],
+    });
+  });
+
+  test('renders lifecycle controls for gateway-backed proposals', () => {
+    const mountPoint = document.createElement('div');
+
+    renderAgentCardPreview(mountPoint, {
+      title: 'Gateway Proposal',
+      status: 'PROPOSED',
+      sourceProposalId: 'proposal_456',
+    }, 'agent-gateway');
+
+    expect(getCurrentAgentCardPreviewSnapshot(mountPoint)?.lifecycleActions).toEqual([
+      {action: 'approve', label: '답장 초안 받기', disabled: false},
+      {action: 'cancel', label: '닫기', disabled: false},
+    ]);
+    expect(getCurrentAgentCardPreviewSnapshot(mountPoint)?.followUpActions).toEqual([]);
   });
 });

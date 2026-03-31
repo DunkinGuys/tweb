@@ -118,6 +118,7 @@ import PopupPremium from '@components/popups/premium';
 import PopupPickUser from '@components/popups/pickUser';
 import getPeerId from '@appManagers/utils/peers/getPeerId';
 import {isSavedDialog} from '@appManagers/utils/dialogs/isDialog';
+import {canUseAgentCardPreviewGateway, showAgentCardPreviewForCurrentChat} from '@lib/agentCardPreviewGateway';
 import getFwdFromName from '@appManagers/utils/messages/getFwdFromName';
 import apiManagerProxy from '@lib/apiManagerProxy';
 import eachSecond from '@helpers/eachSecond';
@@ -209,6 +210,7 @@ export default class ChatInput {
   private newMessageWrapper: HTMLDivElement;
   private btnToggleEmoticons: HTMLButtonElement;
   private btnToggleReplyMarkup: HTMLButtonElement;
+  private btnAgentCardPreview: HTMLButtonElement;
   public btnSendContainer: HTMLDivElement;
 
   private replyKeyboard: ReplyKeyboard;
@@ -1006,6 +1008,7 @@ export default class ChatInput {
     }
 
     if(!this.excludeParts.emoticons) this.btnToggleEmoticons = this.createButtonIcon('smile toggle-emoticons', {noRipple: true});
+    if(canUseAgentCardPreviewGateway()) this.btnAgentCardPreview = this.createButtonIcon('bots agent-card-preview-gateway', {noRipple: true});
 
     this.inputMessageContainer = document.createElement('div');
     this.inputMessageContainer.classList.add('input-message-container');
@@ -1035,6 +1038,29 @@ export default class ChatInput {
     // const getSendMediaRights = () => Promise.all([this.chat.canSend('send_photos'), this.chat.canSend('send_videos')]).then(([photos, videos]) => ({photos, videos}));
 
     const inputThis = this;
+
+    if(this.btnAgentCardPreview) {
+      this.btnAgentCardPreview.title = 'Agent Card Preview';
+      attachClickEvent(this.btnAgentCardPreview, wrapAsyncClickHandler(async() => {
+        const {value} = getRichValueWithCaret(this.messageInputField.input, true, false);
+        const trimmedValue = value.trim();
+        if(!trimmedValue) {
+          toast('Agent Card preview input is empty');
+          return;
+        }
+
+        this.btnAgentCardPreview.setAttribute('disabled', '');
+
+        try {
+          const preview = await showAgentCardPreviewForCurrentChat(trimmedValue);
+          toast(preview.payload?.title || 'Agent Card preview ready');
+        } catch(err) {
+          toast(err instanceof Error ? err.message : String(err));
+        } finally {
+          this.btnAgentCardPreview?.removeAttribute('disabled');
+        }
+      }));
+    }
 
     this.attachMenuButtons = [{
       icon: 'image',
@@ -1200,6 +1226,7 @@ export default class ChatInput {
     this.newMessageWrapper.append(...[
       this.botCommandsToggle,
       this.btnToggleEmoticons,
+      this.btnAgentCardPreview,
       this.inputMessageContainer,
       this.btnScheduled,
       this.btnToggleReplyMarkup,

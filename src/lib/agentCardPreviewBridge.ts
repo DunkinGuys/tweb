@@ -1,4 +1,5 @@
 export type AgentCardPreviewAction = {
+  id?: string,
   type: 'url' | 'copy',
   label?: string,
   url?: string,
@@ -12,7 +13,32 @@ export type AgentCardPreviewPayload = {
   status?: string,
   summary?: string,
   body?: string,
+  sourceProposalId?: string,
   actions?: AgentCardPreviewAction[]
+};
+
+export type AgentCardPreviewSnapshot = {
+  source: string | null,
+  title: string | null,
+  status: string | null,
+  summary: string | null,
+  body: string | null,
+  sourceProposalId: string | null,
+  lifecycleActions: Array<{
+    action: string | null,
+    label: string | null,
+    disabled: boolean
+  }>,
+  followUpActions: Array<{
+    action: string | null,
+    label: string | null,
+    disabled: boolean
+  }>,
+  actions: Array<{
+    id: string | null,
+    type: string | null,
+    label: string | null
+  }>
 };
 
 const ROOT_ATTR = 'data-agent-card-preview-bridge';
@@ -28,6 +54,9 @@ export function renderAgentCardPreview(
   const meta = document.createElement('div');
   const body = document.createElement('div');
   const actions = document.createElement('div');
+  const lifecycle = document.createElement('div');
+  const lifecycleNote = document.createElement('div');
+  const followUpActions = document.createElement('div');
 
   root.replaceChildren(card);
 
@@ -35,6 +64,9 @@ export function renderAgentCardPreview(
   root.dataset.source = source;
   root.dataset.title = payload.title;
   root.dataset.status = payload.status || '';
+  root.dataset.summary = payload.summary || '';
+  root.dataset.body = payload.body || '';
+  root.dataset.sourceProposalId = payload.sourceProposalId || '';
 
   Object.assign(root.style, {
     display: 'flex',
@@ -84,12 +116,33 @@ export function renderAgentCardPreview(
     flexWrap: 'wrap',
     gap: '8px'
   });
+  Object.assign(lifecycle.style, {
+    display: shouldRenderLifecycleControls(payload, source) ? 'flex' : 'none',
+    flexWrap: 'wrap',
+    gap: '8px'
+  });
+  lifecycle.dataset.role = 'lifecycle';
+  followUpActions.dataset.role = 'follow-up-actions';
+  Object.assign(followUpActions.style, {
+    display: 'none',
+    flexWrap: 'wrap',
+    gap: '8px'
+  });
+  Object.assign(lifecycleNote.style, {
+    display: 'none',
+    fontSize: '12px',
+    lineHeight: '1.4',
+    opacity: '0.82',
+  });
+  lifecycleNote.dataset.role = 'lifecycle-note';
 
   for(const [index, action] of (payload.actions || []).entries()) {
     const button = document.createElement(action.type === 'url' && action.url ? 'a' : 'button');
     button.textContent = `${action.type.toUpperCase()}${action.label ? ` · ${action.label}` : ''}`;
+    button.dataset.actionId = action.id || '';
     button.dataset.actionType = action.type;
     button.dataset.actionIndex = String(index);
+    button.dataset.actionLabel = action.label || '';
     Object.assign(button.style, {
       display: 'inline-flex',
       alignItems: 'center',
@@ -123,6 +176,68 @@ export function renderAgentCardPreview(
     actions.append(button);
   }
 
+  if(shouldRenderLifecycleControls(payload, source)) {
+    lifecycle.append(
+      createLifecycleButton('approve', '답장 초안 받기', async(button) => {
+        const {approveAgentCardPreviewForCurrentChat} = await import('@lib/agentCardPreviewGateway');
+        const proposalId = payload.sourceProposalId!;
+        setLifecycleButtonBusy(button, true, '초안 준비 중...');
+        try {
+          const replyPayload = await approveAgentCardPreviewForCurrentChat(proposalId, {
+            applyReplyToComposer: true,
+          });
+          const replySummary = replyPayload.reply?.summary || '답장 초안을 입력창에 채워뒀어';
+          root.dataset.status = 'APPROVED';
+          root.dataset.summary = replySummary;
+          meta.textContent = buildMetaText('APPROVED', replySummary);
+          button.dataset.lifecycleCompleted = 'true';
+          lifecycle.replaceChildren();
+          lifecycle.style.display = 'none';
+          lifecycleNote.textContent = replyPayload.reply?.text
+            ? '답장 초안을 입력창에 넣어뒀어. 그대로 보내거나 조금 다듬으면 돼.'
+            : '승인 처리는 끝났어.';
+          lifecycleNote.style.display = '';
+          followUpActions.replaceChildren(
+            createFollowUpButton('send', '지금 보내기', async(button) => {
+              const {sendCurrentAgentCardPreviewComposer} = await import('@lib/agentCardPreviewGateway');
+              setLifecycleButtonBusy(button, true, '보내는 중...');
+              try {
+                sendCurrentAgentCardPreviewComposer();
+                followUpActions.style.display = 'none';
+                lifecycleNote.textContent = '답장을 보냈어. 이어서 반응을 보면 돼.';
+              } finally {
+                setLifecycleButtonBusy(button, false);
+              }
+            }),
+            createFollowUpButton('edit', '수정하기', async(button) => {
+              const {focusCurrentAgentCardPreviewComposer} = await import('@lib/agentCardPreviewGateway');
+              setLifecycleButtonBusy(button, true, '입력창 여는 중...');
+              try {
+                focusCurrentAgentCardPreviewComposer();
+              } finally {
+                setLifecycleButtonBusy(button, false);
+              }
+            })
+          );
+          followUpActions.style.display = '';
+        } finally {
+          setLifecycleButtonBusy(button, false);
+        }
+      }),
+      createLifecycleButton('cancel', '닫기', async(button) => {
+        const {cancelAgentCardPreviewForCurrentChat} = await import('@lib/agentCardPreviewGateway');
+        const proposalId = payload.sourceProposalId!;
+        setLifecycleButtonBusy(button, true, '닫는 중...');
+        try {
+          await cancelAgentCardPreviewForCurrentChat(proposalId);
+          root.remove();
+        } finally {
+          setLifecycleButtonBusy(button, false);
+        }
+      })
+    );
+  }
+
   card.append(title);
 
   if(meta.textContent) {
@@ -137,7 +252,49 @@ export function renderAgentCardPreview(
     card.append(actions);
   }
 
+  if(lifecycle.childElementCount) {
+    card.append(lifecycle);
+  }
+
+  card.append(lifecycleNote);
+  card.append(followUpActions);
+
   return root;
+}
+
+export function getCurrentAgentCardPreviewSnapshot(mountPoint?: HTMLElement): AgentCardPreviewSnapshot | null {
+  const root = resolvePreviewRoot(mountPoint);
+  if(!root) {
+    return null;
+  }
+
+  const lifecycleActions = Array.from(root.querySelectorAll<HTMLElement>('[data-lifecycle-action]')).map((action) => ({
+    action: action.dataset.lifecycleAction || null,
+    label: action.dataset.lifecycleLabel || null,
+    disabled: action.hasAttribute('disabled'),
+  }));
+  const followUpActionItems = Array.from(root.querySelectorAll<HTMLElement>('[data-follow-up-action]')).map((action) => ({
+    action: action.dataset.followUpAction || null,
+    label: action.dataset.followUpLabel || null,
+    disabled: action.hasAttribute('disabled'),
+  }));
+  const actions = Array.from(root.querySelectorAll<HTMLElement>('[data-action-type]')).map((action) => ({
+    id: action.dataset.actionId || null,
+    type: action.dataset.actionType || null,
+    label: action.dataset.actionLabel || null,
+  }));
+
+  return {
+    source: root.dataset.source || null,
+    title: root.dataset.title || null,
+    status: root.dataset.status || null,
+    summary: root.dataset.summary || null,
+    body: root.dataset.body || null,
+    sourceProposalId: root.dataset.sourceProposalId || null,
+    lifecycleActions,
+    followUpActions: followUpActionItems,
+    actions,
+  };
 }
 
 export function pushAgentCardPreviewToCurrentChat(
@@ -158,7 +315,7 @@ export function pushAgentCardPreviewToCurrentChat(
 }
 
 function ensurePreviewRoot(mountPoint: HTMLElement) {
-  let root = mountPoint.querySelector<HTMLElement>(`[${ROOT_ATTR}="true"]`);
+  let root = resolvePreviewRoot(mountPoint);
   if(root) {
     return root;
   }
@@ -167,6 +324,90 @@ function ensurePreviewRoot(mountPoint: HTMLElement) {
   root.setAttribute(ROOT_ATTR, 'true');
   mountPoint.append(root);
   return root;
+}
+
+function buildMetaText(status?: string, summary?: string) {
+  return [status, summary].filter(Boolean).join(' · ');
+}
+
+function shouldRenderLifecycleControls(payload: AgentCardPreviewPayload, source: string) {
+  return !!payload.sourceProposalId && source === 'agent-gateway';
+}
+
+function createLifecycleButton(
+  action: string,
+  label: string,
+  onClick: (button: HTMLButtonElement) => Promise<void>
+) {
+  const button = document.createElement('button');
+  button.textContent = label;
+  button.dataset.lifecycleAction = action;
+  button.dataset.lifecycleLabel = label;
+  Object.assign(button.style, {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: '30px',
+    padding: '0 12px',
+    borderRadius: '999px',
+    border: '1px solid rgba(255, 255, 255, 0.18)',
+    background: action === 'approve' ? 'rgba(94, 234, 212, 0.14)' : 'rgba(255, 255, 255, 0.06)',
+    color: 'inherit',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: '600'
+  });
+  button.addEventListener('click', () => {
+    void onClick(button).catch((err) => {
+      console.error(`Failed to execute preview lifecycle action: ${action}`, err);
+      setLifecycleButtonBusy(button, false);
+    });
+  });
+  return button;
+}
+
+function createFollowUpButton(
+  action: string,
+  label: string,
+  onClick: (button: HTMLButtonElement) => Promise<void>
+) {
+  const button = createLifecycleButton(action, label, onClick);
+  button.dataset.followUpAction = action;
+  button.dataset.followUpLabel = label;
+  button.removeAttribute('data-lifecycle-action');
+  button.removeAttribute('data-lifecycle-label');
+  return button;
+}
+
+function setLifecycleButtonBusy(button: HTMLButtonElement, busy: boolean, label?: string) {
+  if(busy) {
+    button.dataset.lifecycleOriginalLabel = button.textContent || '';
+    button.textContent = label || 'Working...';
+    button.setAttribute('disabled', 'true');
+    button.style.opacity = '0.7';
+    button.style.cursor = 'progress';
+    return;
+  }
+
+  if(button.dataset.lifecycleOriginalLabel && !button.textContent) {
+    button.textContent = button.dataset.lifecycleOriginalLabel;
+  }
+
+  if(!button.textContent) {
+    button.textContent = button.dataset.lifecycleLabel || 'Action';
+  }
+
+  if(button.dataset.lifecycleCompleted === 'true') {
+    return;
+  }
+
+  button.removeAttribute('disabled');
+  button.style.opacity = '1';
+  button.style.cursor = 'pointer';
+}
+
+function resolvePreviewRoot(mountPoint?: HTMLElement) {
+  return mountPoint?.querySelector<HTMLElement>(`[${ROOT_ATTR}="true"]`) || null;
 }
 
 function getAppImManager() {
