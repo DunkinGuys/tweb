@@ -14,6 +14,11 @@ export type AgentCardPreviewPayload = {
   summary?: string,
   body?: string,
   sourceProposalId?: string,
+  sourceAgentId?: string,
+  sourceAgentSlug?: string,
+  sourceEngagementId?: string,
+  sourceTurnUsage?: number,
+  sourceRemainingTurns?: number,
   actions?: AgentCardPreviewAction[]
 };
 
@@ -24,6 +29,11 @@ export type AgentCardPreviewSnapshot = {
   summary: string | null,
   body: string | null,
   sourceProposalId: string | null,
+  sourceAgentId: string | null,
+  sourceAgentSlug: string | null,
+  sourceEngagementId: string | null,
+  sourceTurnUsage: number | null,
+  sourceRemainingTurns: number | null,
   lifecycleActions: Array<{
     action: string | null,
     label: string | null,
@@ -52,6 +62,7 @@ export function renderAgentCardPreview(
   const card = document.createElement('section');
   const title = document.createElement('strong');
   const meta = document.createElement('div');
+  const engagementMeta = document.createElement('div');
   const body = document.createElement('div');
   const actions = document.createElement('div');
   const lifecycle = document.createElement('div');
@@ -67,6 +78,11 @@ export function renderAgentCardPreview(
   root.dataset.summary = payload.summary || '';
   root.dataset.body = payload.body || '';
   root.dataset.sourceProposalId = payload.sourceProposalId || '';
+  root.dataset.sourceAgentId = payload.sourceAgentId || '';
+  root.dataset.sourceAgentSlug = payload.sourceAgentSlug || '';
+  root.dataset.sourceEngagementId = payload.sourceEngagementId || '';
+  root.dataset.sourceTurnUsage = payload.sourceTurnUsage !== undefined ? String(payload.sourceTurnUsage) : '';
+  root.dataset.sourceRemainingTurns = payload.sourceRemainingTurns !== undefined ? String(payload.sourceRemainingTurns) : '';
 
   Object.assign(root.style, {
     display: 'flex',
@@ -101,6 +117,20 @@ export function renderAgentCardPreview(
     fontSize: '12px',
     opacity: '0.8',
     lineHeight: '1.4'
+  });
+
+  engagementMeta.dataset.role = 'engagement-meta';
+  engagementMeta.textContent = buildEngagementMetaText(payload);
+  Object.assign(engagementMeta.style, {
+    display: engagementMeta.textContent ? 'inline-flex' : 'none',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    minHeight: '24px',
+    padding: '0 10px',
+    borderRadius: '999px',
+    background: 'rgba(255, 255, 255, 0.08)',
+    fontSize: '11px',
+    opacity: '0.86'
   });
 
   body.textContent = payload.body || '';
@@ -248,6 +278,10 @@ export function renderAgentCardPreview(
     card.append(body);
   }
 
+  if(engagementMeta.textContent) {
+    card.append(engagementMeta);
+  }
+
   if(actions.childElementCount) {
     card.append(actions);
   }
@@ -291,6 +325,11 @@ export function getCurrentAgentCardPreviewSnapshot(mountPoint?: HTMLElement): Ag
     summary: root.dataset.summary || null,
     body: root.dataset.body || null,
     sourceProposalId: root.dataset.sourceProposalId || null,
+    sourceAgentId: root.dataset.sourceAgentId || null,
+    sourceAgentSlug: root.dataset.sourceAgentSlug || null,
+    sourceEngagementId: root.dataset.sourceEngagementId || null,
+    sourceTurnUsage: parseSnapshotNumber(root.dataset.sourceTurnUsage),
+    sourceRemainingTurns: parseSnapshotNumber(root.dataset.sourceRemainingTurns),
     lifecycleActions,
     followUpActions: followUpActionItems,
     actions
@@ -301,7 +340,24 @@ export function pushAgentCardPreviewToCurrentChat(
   payload: AgentCardPreviewPayload,
   source = 'agent'
 ) {
-  const appImManager = getAppImManager();
+  const appImManager = readWindowAppImManager();
+  const chat = appImManager?.chat;
+  const chatInner = chat?.bubbles?.chatInner;
+
+  if(!chat?.peerId || !chatInner || !(chatInner instanceof HTMLElement)) {
+    return false;
+  }
+
+  renderAgentCardPreview(chatInner, payload, source);
+  void chat.bubbles.scrollToEnd?.();
+  return true;
+}
+
+export async function pushAgentCardPreviewToCurrentChatAsync(
+  payload: AgentCardPreviewPayload,
+  source = 'agent'
+) {
+  const appImManager = await resolveAppImManager();
   const chat = appImManager?.chat;
   const chatInner = chat?.bubbles?.chatInner;
 
@@ -328,6 +384,17 @@ function ensurePreviewRoot(mountPoint: HTMLElement) {
 
 function buildMetaText(status?: string, summary?: string) {
   return [status, summary].filter(Boolean).join(' · ');
+}
+
+function buildEngagementMetaText(payload: AgentCardPreviewPayload) {
+  if(payload.sourceRemainingTurns === undefined && payload.sourceTurnUsage === undefined) {
+    return '';
+  }
+
+  return [
+    payload.sourceRemainingTurns !== undefined ? `남은 ${payload.sourceRemainingTurns}턴` : null,
+    payload.sourceTurnUsage !== undefined ? `사용 ${payload.sourceTurnUsage}턴` : null
+  ].filter(Boolean).join(' · ');
 }
 
 function shouldRenderLifecycleControls(payload: AgentCardPreviewPayload, source: string) {
@@ -410,7 +477,16 @@ function resolvePreviewRoot(mountPoint?: HTMLElement) {
   return mountPoint?.querySelector<HTMLElement>(`[${ROOT_ATTR}="true"]`) || null;
 }
 
-function getAppImManager() {
+function parseSnapshotNumber(value?: string) {
+  if(!value) {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function readWindowAppImManager() {
   return (window as typeof window & {
     appImManager?: {
       chat?: {
@@ -422,4 +498,14 @@ function getAppImManager() {
       }
     }
   }).appImManager;
+}
+
+async function resolveAppImManager() {
+  const windowAppImManager = readWindowAppImManager();
+  if(windowAppImManager) {
+    return windowAppImManager;
+  }
+
+  const module = await import('./appImManager');
+  return module.default as typeof windowAppImManager;
 }

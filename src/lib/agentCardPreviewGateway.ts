@@ -1,7 +1,12 @@
 import placeCaretAtEnd from '@helpers/dom/placeCaretAtEnd';
-import {pushAgentCardPreviewToCurrentChat, type AgentCardPreviewPayload} from '@lib/agentCardPreviewBridge';
+import {pushAgentCardPreviewToCurrentChatAsync, type AgentCardPreviewPayload} from '@lib/agentCardPreviewBridge';
 
 export type AgentCardPreviewRuntimeContext = Record<string, unknown>;
+export type AgentCardPreviewChatContext = {
+  peerId: number,
+  threadId: number | null,
+  monoforumThreadId: number | null
+};
 
 export type AgentCardPreviewProposalResponse = {
   ok: boolean,
@@ -34,6 +39,10 @@ export type AgentCardPreviewReplyResponse = {
   error?: string,
   message?: string
 };
+
+export const AGENT_CARD_REPLY_COMPOSE_LABEL = 'AI 답장';
+export const AGENT_CARD_REPLY_EMPTY_INPUT_MESSAGE = '답장 초안을 만들 문장을 먼저 적어줘';
+export const AGENT_CARD_REPLY_READY_MESSAGE = '답장 초안이 준비됐어';
 
 const LOCALHOST_GATEWAY_BASE_URL = 'http://127.0.0.1:8788';
 const PROPOSAL_PATH = '/agent-card-preview-proposal';
@@ -90,7 +99,7 @@ export async function requestAgentCardPreviewProposal(
 
   const trimmedInputText = inputText.trim();
   if(!trimmedInputText) {
-    throw new Error('Agent Card preview input is empty');
+    throw new Error(AGENT_CARD_REPLY_EMPTY_INPUT_MESSAGE);
   }
 
   const response = await fetch(`${baseUrl}${PROPOSAL_PATH}`, {
@@ -122,7 +131,7 @@ export async function showAgentCardPreviewForCurrentChat(
     sourceProposalId: response.payload.sourceProposalId || response.proposalId
   };
 
-  const ok = pushAgentCardPreviewToCurrentChat(previewPayload, response.source || 'agent-gateway');
+  const ok = await pushAgentCardPreviewToCurrentChatAsync(previewPayload, response.source || 'agent-gateway');
   if(!ok) {
     throw new Error('Unable to mount Agent Card preview into the current chat');
   }
@@ -153,7 +162,7 @@ export async function requestAgentCardPreviewEvent(
     throw new Error('Agent Card preview proposalId is empty');
   }
 
-  const chatContext = getCurrentChatContext();
+  const chatContext = await getCurrentAgentCardPreviewChatContextAsync();
   const runtimeContext = options?.runtimeContext || getAgentCardPreviewRuntimeContext();
   const response = await fetch(`${baseUrl}${EVENT_PATH}`, {
     method: 'POST',
@@ -204,7 +213,7 @@ export async function approveAgentCardPreviewForCurrentChat(
   const replyPayload = await fetchAgentCardPreviewReply(proposalId);
 
   if(options?.applyReplyToComposer && replyPayload.reply?.text) {
-    putTextIntoCurrentComposer(replyPayload.reply.text);
+    hydrateCurrentAgentCardPreviewComposer(replyPayload.reply.text);
   }
 
   return replyPayload;
@@ -222,6 +231,10 @@ export function focusCurrentAgentCardPreviewComposer() {
 
   input.focus();
   placeCaretAtEnd(input);
+}
+
+export function hydrateCurrentAgentCardPreviewComposer(text: string) {
+  putTextIntoCurrentComposer(text);
 }
 
 export function sendCurrentAgentCardPreviewComposer() {
@@ -296,8 +309,21 @@ function readWindowGatewayBaseUrl() {
   }).__agentCardPreviewGatewayBaseUrl);
 }
 
-function getCurrentChatContext() {
-  const chat = getAppImManager()?.chat;
+export function getCurrentAgentCardPreviewChatContext(): AgentCardPreviewChatContext | null {
+  const chat = readWindowAppImManager()?.chat;
+  if(!chat?.peerId) {
+    return null;
+  }
+
+  return {
+    peerId: chat.peerId,
+    threadId: chat.threadId ?? null,
+    monoforumThreadId: chat.monoforumThreadId ?? null
+  };
+}
+
+export async function getCurrentAgentCardPreviewChatContextAsync(): Promise<AgentCardPreviewChatContext | null> {
+  const chat = (await resolveAppImManager())?.chat;
   if(!chat?.peerId) {
     return null;
   }
@@ -325,7 +351,7 @@ function putTextIntoCurrentComposer(text: string) {
   focusCurrentAgentCardPreviewComposer();
 }
 
-function getAppImManager() {
+function readWindowAppImManager() {
   return (window as typeof window & {
     appImManager?: {
       chat?: {
@@ -335,6 +361,16 @@ function getAppImManager() {
       }
     }
   }).appImManager;
+}
+
+async function resolveAppImManager() {
+  const windowAppImManager = readWindowAppImManager();
+  if(windowAppImManager) {
+    return windowAppImManager;
+  }
+
+  const module = await import('./appImManager');
+  return module.default as typeof windowAppImManager;
 }
 
 function getCurrentComposerInput() {

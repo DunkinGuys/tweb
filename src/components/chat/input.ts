@@ -118,7 +118,13 @@ import PopupPremium from '@components/popups/premium';
 import PopupPickUser from '@components/popups/pickUser';
 import getPeerId from '@appManagers/utils/peers/getPeerId';
 import {isSavedDialog} from '@appManagers/utils/dialogs/isDialog';
-import {canUseAgentCardPreviewGateway, showAgentCardPreviewForCurrentChat} from '@lib/agentCardPreviewGateway';
+import {
+  AGENT_CARD_REPLY_COMPOSE_LABEL,
+  AGENT_CARD_REPLY_EMPTY_INPUT_MESSAGE,
+  AGENT_CARD_REPLY_READY_MESSAGE,
+  canUseAgentCardPreviewGateway,
+  showAgentCardPreviewForCurrentChat
+} from '@lib/agentCardPreviewGateway';
 import getFwdFromName from '@appManagers/utils/messages/getFwdFromName';
 import apiManagerProxy from '@lib/apiManagerProxy';
 import eachSecond from '@helpers/eachSecond';
@@ -159,6 +165,7 @@ import getDocumentDownloadOptions from '@lib/appManagers/utils/docs/getDocumentD
 import getPhotoDownloadOptions from '@lib/appManagers/utils/photos/getPhotoDownloadOptions';
 import {getFileNameByLocation} from '@helpers/fileName';
 import {Middleware, getMiddleware, MiddlewareHelper} from '@helpers/middleware';
+import {canUseAgentRegistry} from '@lib/agentRegistry';
 
 // console.log('Recorder', Recorder);
 
@@ -211,6 +218,7 @@ export default class ChatInput {
   private btnToggleEmoticons: HTMLButtonElement;
   private btnToggleReplyMarkup: HTMLButtonElement;
   private btnAgentCardPreview: HTMLButtonElement;
+  private btnAgentMarketplace: HTMLButtonElement;
   public btnSendContainer: HTMLDivElement;
 
   private replyKeyboard: ReplyKeyboard;
@@ -1009,6 +1017,7 @@ export default class ChatInput {
 
     if(!this.excludeParts.emoticons) this.btnToggleEmoticons = this.createButtonIcon('smile toggle-emoticons', {noRipple: true});
     if(canUseAgentCardPreviewGateway()) this.btnAgentCardPreview = this.createButtonIcon('bots agent-card-preview-gateway', {noRipple: true});
+    if(canUseAgentRegistry()) this.btnAgentMarketplace = this.createButtonIcon('search agent-registry-browser', {noRipple: true});
 
     this.inputMessageContainer = document.createElement('div');
     this.inputMessageContainer.classList.add('input-message-container');
@@ -1040,25 +1049,38 @@ export default class ChatInput {
     const inputThis = this;
 
     if(this.btnAgentCardPreview) {
-      this.btnAgentCardPreview.title = 'Agent Card Preview';
+      this.btnAgentCardPreview.title = AGENT_CARD_REPLY_COMPOSE_LABEL;
+      this.btnAgentCardPreview.setAttribute('aria-label', AGENT_CARD_REPLY_COMPOSE_LABEL);
       attachClickEvent(this.btnAgentCardPreview, wrapAsyncClickHandler(async() => {
         const {value} = getRichValueWithCaret(this.messageInputField.input, true, false);
         const trimmedValue = value.trim();
         if(!trimmedValue) {
-          toast('Agent Card preview input is empty');
+          toast(AGENT_CARD_REPLY_EMPTY_INPUT_MESSAGE);
           return;
         }
 
         this.btnAgentCardPreview.setAttribute('disabled', '');
 
         try {
-          const preview = await showAgentCardPreviewForCurrentChat(trimmedValue);
-          toast(preview.payload?.title || 'Agent Card preview ready');
+          await showAgentCardPreviewForCurrentChat(trimmedValue);
+          toast(AGENT_CARD_REPLY_READY_MESSAGE);
         } catch(err) {
           toast(err instanceof Error ? err.message : String(err));
         } finally {
           this.btnAgentCardPreview?.removeAttribute('disabled');
         }
+      }));
+    }
+
+    if(this.btnAgentMarketplace) {
+      this.btnAgentMarketplace.title = 'Agent 둘러보기';
+      this.btnAgentMarketplace.setAttribute('aria-label', 'Agent 둘러보기');
+      attachClickEvent(this.btnAgentMarketplace, wrapAsyncClickHandler(async() => {
+        const [{default: appSidebarLeft}, {default: AppAgentMarketplaceTab}] = await Promise.all([
+          import('@components/sidebarLeft'),
+          import('@components/sidebarLeft/tabs/agentMarketplace')
+        ]);
+        appSidebarLeft.createTab(AppAgentMarketplaceTab).open();
       }));
     }
 
@@ -1226,6 +1248,7 @@ export default class ChatInput {
     this.newMessageWrapper.append(...[
       this.botCommandsToggle,
       this.btnToggleEmoticons,
+      this.btnAgentMarketplace,
       this.btnAgentCardPreview,
       this.inputMessageContainer,
       this.btnScheduled,

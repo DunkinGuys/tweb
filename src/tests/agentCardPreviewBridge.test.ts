@@ -49,6 +49,8 @@ describe('agentCardPreviewBridge', () => {
       summary: 'Summary text',
       body: 'Body text',
       sourceProposalId: 'proposal_123',
+      sourceTurnUsage: 1,
+      sourceRemainingTurns: 4,
       actions: [
         {id: 'proposal_123:action:1', type: 'copy', label: '답장 복사', copy: 'hello'}
       ]
@@ -61,6 +63,11 @@ describe('agentCardPreviewBridge', () => {
       summary: 'Summary text',
       body: 'Body text',
       sourceProposalId: 'proposal_123',
+      sourceAgentId: null,
+      sourceAgentSlug: null,
+      sourceEngagementId: null,
+      sourceTurnUsage: 1,
+      sourceRemainingTurns: 4,
       lifecycleActions: [],
       followUpActions: [],
       actions: [
