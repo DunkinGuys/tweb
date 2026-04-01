@@ -153,7 +153,7 @@ export default defineConfig({
     target: 'es2020',
     sourcemap: true,
     assetsDir: '',
-    copyPublicDir: false,
+    copyPublicDir: true,
     emptyOutDir: true,
     minify: NO_MINIFY ? false : undefined,
     rollupOptions: {
