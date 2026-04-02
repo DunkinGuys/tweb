@@ -1,3 +1,5 @@
+import {fetchPlatformJson} from '@lib/platformApi';
+
 export type AgentRegistryCategory = {
   categoryId: string,
   slug: string,
@@ -38,6 +40,48 @@ export type AgentRegistryCapability = {
 export type AgentRegistryAgentDetail = AgentRegistryAgentSummary & {
   description?: string,
   capabilities?: AgentRegistryCapability[]
+};
+
+export type AgentConversationSummary = {
+  agent: AgentRegistryAgentSummary,
+  engagement?: {
+    engagementId: string,
+    conversationId?: string,
+    state?: string,
+    turnUsage?: number,
+    paidTurnCount?: number,
+    remainingTurns?: number,
+    latestSummary?: string | null,
+    latestTitle?: string | null,
+    updatedAt?: string | null
+  } | null,
+  checkoutIntent?: {
+    checkoutIntentId: string,
+    state?: string,
+    priceMinor?: number | null,
+    currency?: string | null,
+    pricingModel?: string | null
+  } | null,
+  checkoutSession?: {
+    checkoutSessionId: string,
+    state?: string,
+    paymentMethod?: string | null,
+    providerName?: string | null
+  } | null,
+  hasPaidEntitlement?: boolean
+};
+
+export type AgentConversationMessage = {
+  messageId: string,
+  authorType: 'agent' | 'system' | 'user',
+  authorName: string,
+  kind: 'intro' | 'status' | 'state' | 'checkout_intent' | 'checkout_session' | 'entitlement',
+  text: string,
+  meta?: string | null
+};
+
+export type AgentConversationDetail = AgentConversationSummary & {
+  transcript?: AgentConversationMessage[]
 };
 
 const LOCALHOST_REGISTRY_BASE_URL = 'http://127.0.0.1:8790';
@@ -114,6 +158,25 @@ export async function fetchAgentRegistryAgentDetail(slug: string) {
   return payload.agent;
 }
 
+export async function fetchAgentConversationSummaries() {
+  const payload = await fetchRegistryJson<{ok: boolean, conversations?: AgentConversationSummary[]}>('/agent-conversations');
+  return Array.isArray(payload.conversations) ? payload.conversations : [];
+}
+
+export async function fetchAgentConversationDetail(slug: string) {
+  const trimmedSlug = slug.trim();
+  if(!trimmedSlug) {
+    throw new Error('Agent slug is empty');
+  }
+
+  const payload = await fetchRegistryJson<{ok: boolean, conversation?: AgentConversationDetail}>(`/agent-conversations/${encodeURIComponent(trimmedSlug)}`);
+  if(!payload.conversation) {
+    throw new Error('Agent conversation detail is missing');
+  }
+
+  return payload.conversation;
+}
+
 function normalizeRegistryBaseUrl(value?: string) {
   if(!value) {
     return null;
@@ -151,6 +214,11 @@ async function fetchRegistryJson<T>(pathname: string) {
   const baseUrl = resolveAgentRegistryBaseUrl();
   if(!baseUrl) {
     throw new Error('Agent registry URL is not configured');
+  }
+
+  const platformBaseUrl = typeof window !== 'undefined' ? (window as typeof window & {__platformApiBaseUrl?: string}).__platformApiBaseUrl?.trim().replace(/\/+$/, '') : '';
+  if(platformBaseUrl && baseUrl === platformBaseUrl) {
+    return fetchPlatformJson<T>(pathname);
   }
 
   const response = await fetch(`${baseUrl}${pathname}`);

@@ -85,6 +85,7 @@ import AppChatFoldersTab from '@components/sidebarLeft/tabs/chatFolders';
 import {SliderSuperTabConstructable} from '@components/sliderTab';
 import SettingsSliderPopup from '@components/sidebarLeft/settingsSliderPopup';
 import AppEditFolderTab from '@components/sidebarLeft/tabs/editFolder';
+import AgentConversationsSection from '@components/sidebarLeft/agentConversations';
 import {addShortcutListener} from '@helpers/shortcutListener';
 import tsNow from '@helpers/tsNow';
 import {toastNew} from '@components/toast';
@@ -134,6 +135,7 @@ export class AppSidebarLeft extends SidebarSlider {
   private hasUpdate: boolean;
 
   private onResize: () => void;
+  private agentConversationsSection?: AgentConversationsSection;
 
   public foldersSidebarControls: FoldersSidebarControls;
 
@@ -149,6 +151,7 @@ export class AppSidebarLeft extends SidebarSlider {
     // this._selectTab(0); // make first tab as default
 
     this.chatListContainer = document.getElementById('chatlist-container');
+    this.initAgentConversations();
     this.inputSearch = new InputSearch({oldStyle: true});
     (this.inputSearch.input as HTMLInputElement).placeholder = ' ';
     const sidebarHeader = this.sidebarEl.querySelector('.item-main .sidebar-header');
@@ -387,6 +390,47 @@ export class AppSidebarLeft extends SidebarSlider {
         peerId: appImManager.myId
       });
     });
+  }
+
+  private initAgentConversations() {
+    if(!this.chatListContainer?.parentElement) {
+      return;
+    }
+
+    const usePlatformConversationList = document.body.classList.contains('is-platform-im');
+
+    this.agentConversationsSection = new AgentConversationsSection({
+      onSelectConversation: async(conversation) => {
+        await appImManager.openConversationSurface({
+          conversationId: conversation.conversationId,
+          agentSlug: conversation.agentMeta?.slug
+        });
+      }
+    });
+
+    const {container} = this.agentConversationsSection;
+    Object.assign(container.style, {
+      marginBottom: usePlatformConversationList ? '0' : '8px'
+    });
+
+    if(usePlatformConversationList) {
+      this.chatListContainer.replaceChildren(container);
+      this.chatListContainer.classList.add('is-platform-conversation-list');
+      Object.assign(this.chatListContainer.style, {
+        display: 'flex',
+        flexDirection: 'column',
+        padding: '8px 10px 18px',
+        overflowY: 'auto'
+      });
+      Object.assign(container.style, {
+        width: '100%',
+        height: '100%'
+      });
+    } else {
+      this.chatListContainer.parentElement.insertBefore(container, this.chatListContainer);
+    }
+
+    void this.agentConversationsSection.load();
   }
 
   /**

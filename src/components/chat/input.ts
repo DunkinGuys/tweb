@@ -1073,8 +1073,8 @@ export default class ChatInput {
     }
 
     if(this.btnAgentMarketplace) {
-      this.btnAgentMarketplace.title = 'Agent 둘러보기';
-      this.btnAgentMarketplace.setAttribute('aria-label', 'Agent 둘러보기');
+      this.btnAgentMarketplace.title = '에이전트';
+      this.btnAgentMarketplace.setAttribute('aria-label', '에이전트');
       attachClickEvent(this.btnAgentMarketplace, wrapAsyncClickHandler(async() => {
         const [{default: appSidebarLeft}, {default: AppAgentMarketplaceTab}] = await Promise.all([
           import('@components/sidebarLeft'),

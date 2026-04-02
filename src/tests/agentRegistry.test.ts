@@ -1,5 +1,7 @@
 import {
   canUseAgentRegistry,
+  fetchAgentConversationDetail,
+  fetchAgentConversationSummaries,
   fetchAgentRegistryAgentDetail,
   fetchAgentRegistryAgents,
   fetchAgentRegistryCategories,
@@ -45,7 +47,7 @@ describe('agentRegistry', () => {
     }).__agentRegistryBaseUrl;
   });
 
-  test('fetches categories, list, and detail', async() => {
+  test('fetches categories, list, detail, and conversation payloads', async() => {
     vi.stubEnv('VITE_AGENT_REGISTRY_URL', 'http://127.0.0.1:8790');
 
     const fetchMock = vi.fn()
@@ -60,19 +62,39 @@ describe('agentRegistry', () => {
     .mockResolvedValueOnce(new Response(JSON.stringify({
       ok: true,
       agent: {agentId: 'agent_yeon', providerId: 'provider_int3', categoryId: 'category_dating', slug: 'yeon', name: '연이'}
+    }), {status: 200}))
+    .mockResolvedValueOnce(new Response(JSON.stringify({
+      ok: true,
+      conversations: [{
+        agent: {agentId: 'agent_yeon', providerId: 'provider_int3', categoryId: 'category_dating', slug: 'yeon', name: '연이'},
+        engagement: {engagementId: 'eng_demo_1', state: 'demo_active'}
+      }]
+    }), {status: 200}))
+    .mockResolvedValueOnce(new Response(JSON.stringify({
+      ok: true,
+      conversation: {
+        agent: {agentId: 'agent_yeon', providerId: 'provider_int3', categoryId: 'category_dating', slug: 'yeon', name: '연이'},
+        transcript: [{messageId: 'agent_yeon:intro', authorType: 'agent', authorName: '연이', kind: 'intro', text: '안녕'}]
+      }
     }), {status: 200}));
     globalThis.fetch = fetchMock as typeof fetch;
 
     const categories = await fetchAgentRegistryCategories();
     const agents = await fetchAgentRegistryAgents({category: 'dating'});
     const detail = await fetchAgentRegistryAgentDetail('yeon');
+    const conversations = await fetchAgentConversationSummaries();
+    const conversation = await fetchAgentConversationDetail('yeon');
 
     expect(categories[0]?.slug).toBe('dating');
     expect(agents[0]?.slug).toBe('yeon');
     expect(detail.slug).toBe('yeon');
+    expect(conversations[0]?.engagement?.engagementId).toBe('eng_demo_1');
+    expect(conversation.transcript?.[0]?.text).toBe('안녕');
     expect(fetchMock).toHaveBeenNthCalledWith(1, 'http://127.0.0.1:8790/categories');
     expect(fetchMock).toHaveBeenNthCalledWith(2, 'http://127.0.0.1:8790/agents?category=dating');
     expect(fetchMock).toHaveBeenNthCalledWith(3, 'http://127.0.0.1:8790/agents/yeon');
+    expect(fetchMock).toHaveBeenNthCalledWith(4, 'http://127.0.0.1:8790/agent-conversations');
+    expect(fetchMock).toHaveBeenNthCalledWith(5, 'http://127.0.0.1:8790/agent-conversations/yeon');
   });
 
   test('builds agent list query params for search and filters', async() => {

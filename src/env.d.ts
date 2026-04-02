@@ -21,6 +21,9 @@ interface ImportMetaEnv {
   readonly VITE_MTPROTO_BASE_DC_ID: string;
   readonly VITE_SAFARI_PROXY_WEBSOCKET: string;
   readonly VITE_PLATFORM_API_URL?: string;
+  readonly VITE_PLATFORM_AUTH_MODE?: string;
+  readonly VITE_PLATFORM_GOOGLE_AUTH_ENABLED?: string;
+  readonly VITE_GOOGLE_CLIENT_ID?: string;
   readonly VITE_AGENT_REGISTRY_URL?: string;
   readonly VITE_AGENT_MARKETPLACE_DEMO_URL?: string;
   readonly VITE_AGENT_CARD_PREVIEW_GATEWAY_URL?: string;

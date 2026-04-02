@@ -6,13 +6,14 @@ export default class AppAgentMarketplaceTab extends SliderSuperTab {
 
   private embeddedMarketplace?: PopupAgentMarketplace;
 
-  public init() {
+  public init(initialAgentSlug?: string) {
     this.container.classList.add('agent-marketplace-tab');
-    this.title.textContent = 'Agent 둘러보기';
+    this.title.textContent = '에이전트';
 
     this.embeddedMarketplace = new PopupAgentMarketplace({
       dismissAfterStart: false,
-      embedded: true
+      embedded: true,
+      initialAgentSlug
     });
 
     const marketplaceBody = this.embeddedMarketplace.getEmbeddedBody();

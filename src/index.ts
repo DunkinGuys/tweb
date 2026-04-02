@@ -45,6 +45,8 @@ import AccountController from '@lib/accounts/accountController';
 import {changeAccount} from '@lib/accounts/changeAccount';
 import {MAX_ACCOUNTS_FREE, MAX_ACCOUNTS_PREMIUM} from '@lib/accounts/constants';
 import sessionStorage from '@lib/sessionStorage';
+import {clearPlatformSessionToken, getPlatformSessionToken, setPlatformSessionToken} from '@lib/platformSession';
+import {fetchMe} from '@lib/platformAuth';
 import replaceChildrenPolyfill from '@helpers/dom/replaceChildrenPolyfill';
 import listenForWindowPrint from '@helpers/dom/windowPrint';
 import cancelImageEvents from '@helpers/dom/cancelImageEvents';
@@ -519,7 +521,39 @@ function setDocumentLangPackProperties(langPack: LangPackDifference.langPackDiff
 
   const hash = location.hash;
   const splitted = hash.split('?');
-  const params = parseUriParamsLine(splitted[1] ?? splitted[0].slice(1));
+  const params = {
+    ...parseUriParamsLine(location.search.slice(1)),
+    ...parseUriParamsLine(splitted[1] ?? splitted[0].slice(1))
+  };
+
+  if(typeof params.platformSessionToken === 'string' && params.platformSessionToken.trim()) {
+    setPlatformSessionToken(params.platformSessionToken.trim());
+    const cleanUrl = new URL(location.href);
+    cleanUrl.searchParams.delete('platformSessionToken');
+    history.replaceState(null, '', cleanUrl.toString());
+  }
+
+  const platformAuthEnabled = isPlatformAuthEnabled(params);
+
+  if(platformAuthEnabled) {
+    const platformSessionToken = getPlatformSessionToken();
+    if(platformSessionToken) {
+      try {
+        await fetchMe(platformSessionToken);
+        const pagePlatformIm = (await import('./pages/pagePlatformIm')).default;
+        await pagePlatformIm.mount();
+        return;
+      } catch(err) {
+        console.warn('Failed to resume platform session, clearing token', err);
+        clearPlatformSessionToken();
+      }
+    }
+
+    const pagePlatformAuth = (await import('./pages/pagePlatformAuth')).default;
+    await pagePlatformAuth.mount();
+    return;
+  }
+
   if(params.tgWebAuthToken && authState._ !== 'authStateSignedIn') {
     const data: AuthState.signImport['data'] = {
       token: params.tgWebAuthToken,
@@ -719,3 +753,20 @@ function setDocumentLangPackProperties(langPack: LangPackDifference.langPackDiff
     }
   }
 });
+
+function isPlatformAuthEnabled(params: {[key: string]: string}) {
+  if(params.platform === '1') {
+    return true;
+  }
+
+  if(typeof window !== 'undefined' && window.location.hostname === 'mvp.luminite.io') {
+    return true;
+  }
+
+  if(getPlatformSessionToken()) {
+    return true;
+  }
+
+  const envValue = import.meta.env.VITE_PLATFORM_AUTH_MODE;
+  return envValue === '1' || envValue === 'true';
+}

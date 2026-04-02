@@ -14,6 +14,7 @@ import mediaSizes, {ScreenSize} from '@helpers/mediaSizes';
 import {logger, LogTypes} from '@lib/logger';
 import rootScope from '@lib/rootScope';
 import Chat, {ChatSearchKeys} from '@components/chat/chat';
+import ConversationMainChat from '@components/chat/conversationMainChat';
 import {ChatType} from '@components/chat/chatType';
 import PopupNewMedia, {getCurrentNewMediaPopup} from '@components/popups/newMedia';
 import MarkupTooltip from '@components/chat/markupTooltip';
@@ -199,6 +200,7 @@ export class AppImManager extends EventListenerBase<{
   private tabId: APP_TABS;
 
   public chats: Chat[] = [];
+  public conversationMainChat?: ConversationMainChat;
   private prevTab: HTMLElement;
   private chatsSelectTabDebounced: () => void;
 
@@ -2032,6 +2034,10 @@ export class AppImManager extends EventListenerBase<{
   // * (или под текущим чатом) чтобы правильно отрендерить чат (напр. scrollTop)
   private chatsSelectTab(chat: Chat, animate?: boolean) {
     const tab = chat.container;
+    this.selectCenterTab(tab, animate, chat);
+  }
+
+  private selectCenterTab(tab: HTMLElement, animate?: boolean, chat?: Chat) {
     if(this.prevTab === tab) {
       return;
     }
@@ -2051,7 +2057,7 @@ export class AppImManager extends EventListenerBase<{
 
       const prevIdx = whichChild(this.prevTab);
       const idx = whichChild(tab);
-      if(idx > prevIdx) {
+      if(chat && idx > prevIdx) {
         const found = appNavigationController.findItem((item) => item.context === chat);
         appNavigationController.spliceItems(
           found ? found.index : appNavigationController.getNextIndex(),
@@ -2069,6 +2075,24 @@ export class AppImManager extends EventListenerBase<{
 
     tab.classList.add('active');
     this.prevTab = tab;
+  }
+
+  public async openConversationSurface(options: {conversationId?: string, agentSlug?: string}, animate?: boolean) {
+    if(!this.conversationMainChat) {
+      this.conversationMainChat = new ConversationMainChat();
+      this.chatsContainer.append(this.conversationMainChat.container);
+    }
+
+    await this.conversationMainChat.openConversation(options);
+    this.selectCenterTab(this.conversationMainChat.container, animate);
+    this.selectTab(APP_TABS.CHAT, animate);
+    window.dispatchEvent(new CustomEvent('conversation-opened', {
+      detail: {
+        conversationId: options.conversationId,
+        conversationKind: 'agent',
+        agentSlug: options.agentSlug
+      }
+    }));
   }
 
   private init() {

@@ -41,13 +41,15 @@ export default class PopupAgentMarketplace extends PopupElement {
   private searchDebounce?: number;
   private dismissAfterStart: boolean;
   private embedded: boolean;
+  private initialAgentSlug?: string;
 
   constructor(options: {
     dismissAfterStart?: boolean,
-    embedded?: boolean
+    embedded?: boolean,
+    initialAgentSlug?: string
   } = {}) {
     const title = document.createElement('span');
-    title.textContent = 'Agent 둘러보기';
+    title.textContent = '에이전트';
     super('popup-peer', {
       closable: true,
       body: true,
@@ -57,6 +59,7 @@ export default class PopupAgentMarketplace extends PopupElement {
 
     this.dismissAfterStart = options.dismissAfterStart !== false;
     this.embedded = options.embedded === true;
+    this.initialAgentSlug = options.initialAgentSlug?.trim();
 
     this.construct();
   }
@@ -249,7 +252,10 @@ export default class PopupAgentMarketplace extends PopupElement {
 
     const cards = agents.map((agent) => this.createAgentCard(agent));
     this.agentsEl.replaceChildren(...cards);
-    await this.showAgentDetail(agents[0].slug);
+    const initialAgentSlug = this.initialAgentSlug && agents.some((agent) => agent.slug === this.initialAgentSlug) ?
+      this.initialAgentSlug :
+      agents[0].slug;
+    await this.showAgentDetail(initialAgentSlug);
   }
 
   private createAgentCard(agent: AgentRegistryAgentSummary) {
