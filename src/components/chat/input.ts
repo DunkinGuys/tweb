@@ -3946,6 +3946,17 @@ export default class ChatInput {
     const {value, entities} = getRichValueWithCaret(this.messageInputField.input, true, false);
     const trimmedValue = value.trim();
 
+    if(chat.syntheticInputEnabled && chat.syntheticConversationTarget?.conversationId && !editMsgId) {
+      if(trimmedValue) {
+        await this.chat.appImManager.sendSyntheticConversationMessage(chat, value);
+        this.onMessageSent(false, false);
+        if(this.suggestedPost) {
+          this.clearHelper();
+        }
+      }
+      return;
+    }
+
     let messageCount = 0;
     if(chat.type !== ChatType.Scheduled && !editMsgId) {
       if(this.forwarding) {

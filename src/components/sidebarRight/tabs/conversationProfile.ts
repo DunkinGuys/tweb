@@ -1,5 +1,4 @@
 import {SliderSuperTab} from '@components/slider';
-import SettingSection from '@components/settingSection';
 import {
   fetchConversationDetail,
   fetchConversationProfile,
@@ -51,91 +50,58 @@ export default class AppConversationProfileTab extends SliderSuperTab {
     this.title.textContent = profile.displayName;
     this.scrollable.replaceChildren();
 
-    const heroSection = new SettingSection({
-      name: (() => {
-        const title = document.createElement('span');
-        title.textContent = profile.participantType === 'agent' ? '에이전트 프로필' : '대화 상대';
-        return title;
-      })(),
-      noDelimiter: false,
-      noShadow: true
-    });
+    const content = document.createElement('div');
+    content.classList.add('profile-content');
 
-    const hero = document.createElement('div');
-    Object.assign(hero.style, {
+    const avatarWrap = document.createElement('div');
+    avatarWrap.classList.add('profile-avatars-container');
+    Object.assign(avatarWrap.style, {
+      paddingTop: '20px',
       display: 'grid',
-      gridTemplateColumns: '56px minmax(0, 1fr)',
-      gap: '12px',
-      alignItems: 'center',
-      padding: '8px 0'
+      placeItems: 'center'
     });
 
     const avatar = document.createElement('div');
+    avatar.classList.add('profile-avatars-avatar', 'profile-avatars-avatar-fake');
     avatar.textContent = (profile.avatarLabel || profile.displayName.slice(0, 1) || '?').slice(0, 1);
+    let avatarBackground = 'linear-gradient(135deg, rgba(148, 163, 184, 0.22), rgba(100, 116, 139, 0.18))';
+    if(profile.participantType === 'agent') {
+      avatarBackground = 'linear-gradient(135deg, rgba(94, 234, 212, 0.24), rgba(56, 189, 248, 0.18))';
+    }
     Object.assign(avatar.style, {
-      width: '56px',
-      height: '56px',
+      width: '104px',
+      height: '104px',
       borderRadius: '50%',
       display: 'grid',
       placeItems: 'center',
       fontWeight: '700',
-      background: profile.participantType === 'agent' ?
-        'linear-gradient(135deg, rgba(94, 234, 212, 0.22), rgba(56, 189, 248, 0.18))' :
-        'linear-gradient(135deg, rgba(148, 163, 184, 0.18), rgba(100, 116, 139, 0.18))'
+      fontSize: '34px',
+      color: 'var(--primary-text-color)',
+      background: avatarBackground
     });
-
-    const textWrap = document.createElement('div');
-    Object.assign(textWrap.style, {
-      minWidth: '0',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '4px'
-    });
+    avatarWrap.append(avatar);
 
     const name = document.createElement('div');
+    name.classList.add('profile-name');
     name.textContent = profile.displayName;
-    Object.assign(name.style, {
-      fontSize: '16px',
-      fontWeight: '700'
-    });
 
-    const headline = document.createElement('div');
-    headline.textContent = profile.headline || (profile.participantType === 'agent' ? '에이전트와 대화 중이야.' : '일반 대화 상대야.');
-    Object.assign(headline.style, {
-      fontSize: '13px',
-      opacity: '0.78',
-      lineHeight: '1.45'
-    });
+    const subtitle = document.createElement('div');
+    subtitle.classList.add('profile-subtitle');
+
+    const subtitleText = document.createElement('div');
+    subtitleText.classList.add('profile-subtitle-text');
+    subtitleText.textContent = profile.headline || (profile.participantType === 'agent' ? '에이전트와 대화 중이야.' : '일반 대화 상대야.');
+    subtitle.append(subtitleText);
 
     const meta = document.createElement('div');
+    meta.classList.add('sidebar-header__subtitle');
     meta.textContent = [
       conversation.conversationKind === 'agent' ? '에이전트 대화' : '일반 대화',
       profile.updatedAt ? `최근 활동 ${new Date(profile.updatedAt).toLocaleTimeString('ko-KR', {hour: '2-digit', minute: '2-digit'})}` : null
     ].filter(Boolean).join(' · ');
     Object.assign(meta.style, {
-      fontSize: '12px',
-      opacity: '0.56'
-    });
-
-    textWrap.append(name, headline, meta);
-    hero.append(avatar, textWrap);
-    heroSection.content.append(hero);
-
-    const infoSection = new SettingSection({
-      name: (() => {
-        const title = document.createElement('span');
-        title.textContent = '상세';
-        return title;
-      })(),
-      noDelimiter: false,
-      noShadow: true
-    });
-
-    const infoList = document.createElement('div');
-    Object.assign(infoList.style, {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '10px'
+      textAlign: 'center',
+      padding: '0 24px 10px'
     });
 
     const entries: Array<[string, string | null | undefined]> = [
@@ -158,16 +124,26 @@ export default class AppConversationProfileTab extends SliderSuperTab {
       );
     }
 
+    const infoList = document.createElement('div');
+    infoList.classList.add('sidebar-left-section-container');
+
     for(const [label, value] of entries) {
       if(!value) {
         continue;
       }
 
-      const row = document.createElement('div');
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.classList.add('row');
       Object.assign(row.style, {
         display: 'flex',
         flexDirection: 'column',
-        gap: '3px'
+        alignItems: 'flex-start',
+        gap: '3px',
+        width: '100%',
+        textAlign: 'left',
+        background: 'transparent',
+        border: '0'
       });
 
       const key = document.createElement('div');
@@ -188,42 +164,36 @@ export default class AppConversationProfileTab extends SliderSuperTab {
       infoList.append(row);
     }
 
-    infoSection.content.append(infoList);
-
-    this.scrollable.append(heroSection.container, infoSection.container);
+    content.append(avatarWrap, name, subtitle, meta, infoList);
 
     if(profile.participantType === 'agent' && profile.capabilities?.length) {
-      const capabilitySection = new SettingSection({
-        name: (() => {
-          const title = document.createElement('span');
-          title.textContent = 'Capability';
-          return title;
-        })(),
-        noDelimiter: false,
-        noShadow: true
-      });
-
       const capabilityList = document.createElement('div');
-      Object.assign(capabilityList.style, {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '8px'
+      capabilityList.classList.add('sidebar-left-section-container');
+      Object.assign(capabilityList.style, {marginTop: '12px'});
+
+      const capabilityTitle = document.createElement('div');
+      capabilityTitle.textContent = 'Capability';
+      Object.assign(capabilityTitle.style, {
+        padding: '0 24px 10px',
+        fontSize: '13px',
+        fontWeight: '600',
+        opacity: '0.8'
       });
+      content.append(capabilityTitle);
 
       for(const capability of profile.capabilities) {
         const item = document.createElement('div');
+        item.classList.add('row');
         item.textContent = capability.capabilityKey || 'unknown';
         Object.assign(item.style, {
-          fontSize: '13px',
-          padding: '10px 12px',
-          borderRadius: '12px',
-          background: 'rgba(255, 255, 255, 0.04)'
+          fontSize: '13px'
         });
         capabilityList.append(item);
       }
 
-      capabilitySection.content.append(capabilityList);
-      this.scrollable.append(capabilitySection.container);
+      content.append(capabilityList);
     }
+
+    this.scrollable.append(content);
   }
 }

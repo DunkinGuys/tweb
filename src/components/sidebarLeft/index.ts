@@ -417,9 +417,7 @@ export class AppSidebarLeft extends SidebarSlider {
       this.chatListContainer.replaceChildren(container);
       this.chatListContainer.classList.add('is-platform-conversation-list');
       Object.assign(this.chatListContainer.style, {
-        display: 'flex',
-        flexDirection: 'column',
-        padding: '8px 10px 18px',
+        padding: '',
         overflowY: 'auto'
       });
       Object.assign(container.style, {

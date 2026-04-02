@@ -2,14 +2,26 @@ import Page from '@/pages/page';
 import blurActiveElement from '@helpers/dom/blurActiveElement';
 import loadFonts from '@helpers/dom/loadFonts';
 import rootScope from '@lib/rootScope';
-import appSidebarLeft from '@components/sidebarLeft';
-import appSidebarRight from '@components/sidebarRight';
 import appImManager from '@lib/appImManager';
 import {fetchConversationSummaries} from '@lib/conversations';
 import {fetchMe} from '@lib/platformAuth';
 import {clearPlatformSessionToken, getPlatformSessionToken, setPlatformCurrentUser} from '@lib/platformSession';
 
 let isPlatformShellMounted = false;
+
+async function ensurePlatformShellStarted() {
+  const [appDialogsManager, recorder] = await Promise.all([
+    import('@lib/appDialogsManager'),
+    import('../vendor/recorder.min.js'),
+    loadFonts(),
+    'requestVideoFrameCallback' in HTMLVideoElement.prototype ? Promise.resolve() : import('../helpers/dom/requestVideoFrameCallbackPolyfill')
+  ]).then(([dialogsManager, recorderModule]) => {
+    return [dialogsManager.default, recorderModule.default] as const;
+  });
+
+  (window as any).Recorder = recorder;
+  appDialogsManager.start();
+}
 
 async function onFirstMount() {
   const sessionToken = getPlatformSessionToken();
@@ -35,15 +47,15 @@ async function onFirstMount() {
   document.body.classList.add('is-platform-im');
 
   blurActiveElement();
-  await loadFonts();
 
   if(!isPlatformShellMounted) {
-    const managers = rootScope.managers;
-    appSidebarLeft.construct(managers);
-    appSidebarRight.construct(managers);
-    appImManager.construct(managers);
+    await ensurePlatformShellStarted();
     isPlatformShellMounted = true;
+  } else {
+    appImManager.ensureCenterMounted();
   }
+
+  appImManager.ensureCenterMounted();
 
   document.body.classList.remove('has-auth-pages');
 

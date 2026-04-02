@@ -35,7 +35,7 @@ async function onFirstMount() {
   subtitle.classList.add('subtitle', 'text-center');
   subtitle.textContent = 'Telegram 로그인 대신 우리 대화 백엔드로 바로 들어가는 제품 전환 경로야.';
 
-  const inputWrapper = document.createElement('div');
+  const inputWrapper = document.createElement('form');
   inputWrapper.classList.add('input-wrapper');
   Object.assign(inputWrapper.style, {
     display: 'flex',
@@ -59,6 +59,7 @@ async function onFirstMount() {
   styleInput(nameInput);
 
   const continueButton = Button('btn-primary btn-color-primary');
+  continueButton.type = 'submit';
   continueButton.textContent = '실험용 세션으로 계속';
   const fallbackLabel = document.createElement('div');
   fallbackLabel.classList.add('subtitle', 'text-center');
@@ -117,18 +118,9 @@ async function onFirstMount() {
     window.location.href = getGoogleAuthStartUrl(`${window.location.origin}/?platform=1`);
   };
 
-  emailInput.addEventListener('keydown', (event) => {
-    if(event.key === 'Enter') {
-      event.preventDefault();
-      void onSubmit();
-    }
-  });
-
-  nameInput.addEventListener('keydown', (event) => {
-    if(event.key === 'Enter') {
-      event.preventDefault();
-      void onSubmit();
-    }
+  inputWrapper.addEventListener('submit', (event) => {
+    event.preventDefault();
+    void onSubmit();
   });
 
   if(isGoogleRedirectEnabled()) {
@@ -144,10 +136,6 @@ async function onFirstMount() {
     googleSignInButton.style.display = 'none';
     hint.textContent = '지금은 개발용 fallback session으로 들어가. 정식 Google 로그인은 배포 설정이 준비되면 켤 거야.';
   }
-  attachClickEvent(continueButton, () => {
-    void onSubmit();
-  });
-
   inputWrapper.append(googleSignInButton, fallbackLabel, emailInput, nameInput, continueButton, hint);
   container.append(title, subtitle, inputWrapper);
   page.pageEl.append(container);

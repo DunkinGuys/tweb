@@ -191,6 +191,17 @@ export default class Chat extends EventListenerBase<{
   public fullPeer: Accessor<ChatFull | UserFull>;
 
   public staticMessages: MyMessage[] = [];
+  public syntheticInputEnabled = false;
+  public syntheticConversationTarget?: {
+    conversationId?: string,
+    agentSlug?: string
+  };
+  public syntheticConversationMeta?: {
+    title: string,
+    subtitle?: string,
+    avatarLabel?: string,
+    participantType?: 'user' | 'agent'
+  };
 
   // public requestHistoryOptionsPart: RequestHistoryOptions;
 
@@ -1026,7 +1037,16 @@ export default class Chat extends EventListenerBase<{
   }
 
   public setPeer(options: ChatSetPeerOptions) {
-    const {peerId, threadId, monoforumThreadId, messages, type} = options;
+    const {
+      peerId,
+      threadId,
+      monoforumThreadId,
+      messages,
+      type,
+      syntheticInputEnabled,
+      syntheticConversationTarget,
+      syntheticConversationMeta
+    } = options;
     if(!peerId) {
       this.inited = undefined;
     } else if(!this.inited) {
@@ -1045,7 +1065,7 @@ export default class Chat extends EventListenerBase<{
       this.threadId = threadId;
       this.monoforumThreadId = monoforumThreadId;
       this.isTemporaryThread = isTempId(threadId);
-      this.noInput = [ChatType.Static, ChatType.Logs].includes(type);
+      this.noInput = type === ChatType.Logs || ((type === ChatType.Static || type === ChatType.Chat) && !syntheticInputEnabled);
       this.middlewareHelper.clean();
 
       createRoot((dispose) => {
@@ -1062,6 +1082,9 @@ export default class Chat extends EventListenerBase<{
     }
 
     this.staticMessages = messages || [];
+    this.syntheticInputEnabled = !!syntheticInputEnabled;
+    this.syntheticConversationTarget = syntheticConversationTarget;
+    this.syntheticConversationMeta = syntheticConversationMeta;
 
     if(!peerId) {
       this.peerIdSignal[1](this.peerId = 0);

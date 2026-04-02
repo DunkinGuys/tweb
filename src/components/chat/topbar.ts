@@ -56,6 +56,7 @@ import createBadge from '@helpers/createBadge';
 import AppStatisticsTab from '@components/sidebarRight/tabs/statistics';
 import {ChatType} from './chatType';
 import AppBoostsTab from '@components/sidebarRight/tabs/boosts';
+import AppConversationProfileTab from '@components/sidebarRight/tabs/conversationProfile';
 import ChatLive from '@components/chat/topbarLive/container';
 import {RtmpStartStreamPopup} from '@components/rtmp/adminPopup';
 import assumeType from '@helpers/assumeType';
@@ -301,6 +302,8 @@ export default class ChatTopbar {
         const avatar = findUpAvatar(e.target);
         if(mediaSizes.activeScreen === ScreenSize.medium && document.body.classList.contains(LEFT_COLUMN_ACTIVE_CLASSNAME)) {
           onBtnBackClick();
+        } else if(this.chat.syntheticConversationTarget?.conversationId) {
+          void this.openSyntheticConversationProfile();
         } else if(avatar) {
           if(avatar.classList.contains('has-stories')) {
             return;
@@ -327,6 +330,17 @@ export default class ChatTopbar {
     };
 
     attachClickEvent(this.btnBack, onBtnBackClick, {listenerSetter: this.listenerSetter});
+  }
+
+  private async openSyntheticConversationProfile() {
+    const conversationId = this.chat.syntheticConversationTarget?.conversationId?.trim();
+    if(!conversationId) {
+      return;
+    }
+
+    const tab = this.appSidebarRight.createTab(AppConversationProfileTab);
+    await tab.loadProfile({conversationId});
+    await this.appSidebarRight.toggleSidebar(true);
   }
 
   private pushButtonToVerify(element: HTMLElement, verify: ButtonToVerify['verify']) {
@@ -1421,6 +1435,7 @@ export default class ChatTopbar {
 
   public async setTitleManual(count?: number) {
     const {peerId, threadId, monoforumThreadId} = this.chat;
+    const syntheticMeta = this.chat.syntheticConversationMeta;
     let titleEl: HTMLElement, icons: Element[];
     const oldMiddlewareHelper = this.titleMiddlewareHelper;
     oldMiddlewareHelper?.destroy();
@@ -1470,6 +1485,9 @@ export default class ChatTopbar {
       }
 
       titleEl = el.element;
+    } else if(syntheticMeta?.title && (this.chat.type === ChatType.Chat || this.chat.type === ChatType.Static)) {
+      titleEl = document.createElement('span');
+      titleEl.textContent = syntheticMeta.title;
     } else if(this.chat.type === ChatType.Chat || this.chat.type === ChatType.Saved || this.chat.type === ChatType.Static || this.chat.type === ChatType.Logs) {
       const usePeerId = monoforumThreadId || (this.chat.type === ChatType.Saved ? threadId : peerId);
 
@@ -1605,6 +1623,17 @@ export default class ChatTopbar {
 
   private createStatus() {
     if(!this.subtitle || (this.chat.type !== ChatType.Chat && this.chat.type !== ChatType.Saved)) return;
+    if(this.chat.syntheticConversationMeta?.subtitle && this.chat.type === ChatType.Chat) {
+      return {
+        prepare: async() => {
+          const span = document.createElement('span');
+          span.textContent = this.chat.syntheticConversationMeta.subtitle;
+          return () => replaceContent(this.subtitle, span);
+        },
+        destroy: () => {}
+      };
+    }
+
     const middlewareHelper = getMiddleware();
     const middleware = middlewareHelper.get();
     const listenerSetter = new ListenerSetter();

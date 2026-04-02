@@ -78,6 +78,14 @@ import EventListenerBase from '@helpers/eventListenerBase';
 import {AckedResult} from '@lib/superMessagePort';
 import groupCallsController from '@lib/calls/groupCallsController';
 import callsController from '@lib/calls/callsController';
+import {loadConversationMainChatState} from '@lib/conversationMainChatModel';
+import {buildConversationMainChatViewModel} from '@lib/conversationMainChatViewModel';
+import {sendConversationMessage} from '@lib/conversations';
+import {
+  materializeConversationChatHistory,
+  materializeConversationSyntheticMessages,
+  resolveConversationSyntheticPeerId
+} from '@lib/conversationSyntheticMessagesAdapter';
 import getFilesFromEvent from '@helpers/files/getFilesFromEvent';
 import apiManagerProxy from '@lib/apiManagerProxy';
 import paymentsWrapCurrencyAmount from '@helpers/paymentsWrapCurrencyAmount';
@@ -166,7 +174,18 @@ export type ChatSetPeerOptions = {
   call?: string | number,
   isDeleting?: boolean,
   fromTemporaryThread?: boolean,
-  messages?: MyMessage[]
+  messages?: MyMessage[],
+  syntheticInputEnabled?: boolean,
+  syntheticConversationTarget?: {
+    conversationId?: string,
+    agentSlug?: string
+  },
+  syntheticConversationMeta?: {
+    title: string,
+    subtitle?: string,
+    avatarLabel?: string,
+    participantType?: 'user' | 'agent'
+  }
 } & Partial<ChatSearchKeys>;
 
 export type ChatSetInnerPeerOptions = Modify<ChatSetPeerOptions, {
@@ -790,6 +809,33 @@ export class AppImManager extends EventListenerBase<{
     // Promise.resolve(apiManagerProxy.getAppConfig()).then(() => {
     //   showStoriesStealthModePopup();
     // });
+  }
+
+  public ensureCenterMounted() {
+    this.columnEl ||= document.getElementById('column-center') as HTMLDivElement;
+    if(!this.columnEl) {
+      return;
+    }
+
+    if(this.chatsContainer && !this.chatsContainer.parentElement) {
+      this.columnEl.append(this.chatsContainer);
+    }
+
+    if(!this.chatsContainer) {
+      return;
+    }
+
+    if(!this.chats.length) {
+      this.createNewChat();
+    }
+
+    if(this.chat?.container && !this.chatsContainer.contains(this.chat.container)) {
+      this.chatsContainer.append(this.chat.container);
+    }
+
+    if(this.chat) {
+      this.chatsSelectTab(this.chat);
+    }
   }
 
   public adjustChatPatternBackground() {
@@ -2078,6 +2124,36 @@ export class AppImManager extends EventListenerBase<{
   }
 
   public async openConversationSurface(options: {conversationId?: string, agentSlug?: string}, animate?: boolean) {
+    if(this.shouldUseTelegramChatConversationSurface()) {
+      try {
+        await this.openTelegramChatConversationSurface(options, animate);
+        return;
+      } catch(err) {
+        console.warn('Failed to open chat conversation surface', err);
+      }
+    }
+
+    if(this.shouldUseStaticConversationSurface()) {
+      try {
+        await this.openStaticConversationSurface(options, animate);
+        return;
+      } catch(err) {
+        console.warn('Failed to open static conversation surface', err);
+      }
+    }
+
+    if(this.shouldUseLegacyConversationSurface()) {
+      return this.openLegacyConversationSurface(options, animate);
+    }
+
+    if(this.shouldUseTelegramChatConversationSurface()) {
+      throw new Error('Telegram conversation surface failed and legacy fallback is disabled');
+    }
+
+    return this.openLegacyConversationSurface(options, animate);
+  }
+
+  private async openLegacyConversationSurface(options: {conversationId?: string, agentSlug?: string}, animate?: boolean) {
     if(!this.conversationMainChat) {
       this.conversationMainChat = new ConversationMainChat();
       this.chatsContainer.append(this.conversationMainChat.container);
@@ -2093,6 +2169,140 @@ export class AppImManager extends EventListenerBase<{
         agentSlug: options.agentSlug
       }
     }));
+  }
+
+  private shouldUseLegacyConversationSurface() {
+    try {
+      return new URL(window.location.href).searchParams.get('platform_legacy') === '1';
+    } catch(err) {
+      return false;
+    }
+  }
+
+  private shouldUseStaticConversationSurface() {
+    try {
+      return new URL(window.location.href).searchParams.get('platform_static') === '1';
+    } catch(err) {
+      return false;
+    }
+  }
+
+  private shouldUseTelegramChatConversationSurface() {
+    try {
+      const url = new URL(window.location.href);
+      if(url.searchParams.get('platform_chat') === '1') {
+        return true;
+      }
+
+      if(url.searchParams.get('platform_static') === '1') {
+        return false;
+      }
+
+      if(document.body.classList.contains('is-platform-im')) {
+        return true;
+      }
+
+      return window.location.hostname === 'mvp.luminite.io';
+    } catch(err) {
+      return false;
+    }
+  }
+
+  private async openTelegramChatConversationSurface(options: {conversationId?: string, agentSlug?: string}, animate?: boolean) {
+    const state = await loadConversationMainChatState(options);
+    const viewModel = buildConversationMainChatViewModel(state);
+    const peerId = resolveConversationSyntheticPeerId(state.conversationId || options.agentSlug || viewModel.title);
+    await materializeConversationChatHistory({
+      managers: this.managers,
+      peerId,
+      displayName: viewModel.title,
+      seeds: viewModel.syntheticMessageSeeds,
+      isBot: !!state.agent
+    });
+
+    await this.setPeer({
+      peerId,
+      type: ChatType.Chat,
+      syntheticInputEnabled: true,
+      syntheticConversationTarget: {
+        conversationId: state.conversationId,
+        agentSlug: state.agent?.slug
+      },
+      syntheticConversationMeta: {
+        title: viewModel.title,
+        subtitle: viewModel.meta,
+        avatarLabel: viewModel.avatarLabel,
+        participantType: state.agent ? 'agent' : 'user'
+      }
+    }, animate);
+
+    this.chatsSelectTab(this.chat, animate);
+    this.selectTab(APP_TABS.CHAT, animate);
+    window.dispatchEvent(new CustomEvent('conversation-opened', {
+      detail: {
+        conversationId: state.conversationId,
+        conversationKind: state.conversation.conversationKind,
+        agentSlug: state.agent?.slug
+      }
+    }));
+  }
+
+  private async openStaticConversationSurface(options: {conversationId?: string, agentSlug?: string}, animate?: boolean) {
+    const state = await loadConversationMainChatState(options);
+    const viewModel = buildConversationMainChatViewModel(state);
+    const peerId = resolveConversationSyntheticPeerId(state.conversationId || options.agentSlug || viewModel.title);
+    const messages = await materializeConversationSyntheticMessages({
+      managers: this.managers,
+      peerId,
+      displayName: viewModel.title,
+      seeds: viewModel.syntheticMessageSeeds,
+      isBot: !!state.agent
+    });
+
+    await this.setPeer({
+      peerId,
+      type: ChatType.Static,
+      messages,
+      syntheticInputEnabled: true,
+      syntheticConversationTarget: {
+        conversationId: state.conversationId,
+        agentSlug: state.agent?.slug
+      },
+      syntheticConversationMeta: {
+        title: viewModel.title,
+        subtitle: viewModel.meta,
+        avatarLabel: viewModel.avatarLabel,
+        participantType: state.agent ? 'agent' : 'user'
+      }
+    }, animate);
+
+    this.chatsSelectTab(this.chat, animate);
+    this.selectTab(APP_TABS.CHAT, animate);
+    window.dispatchEvent(new CustomEvent('conversation-opened', {
+      detail: {
+        conversationId: state.conversationId,
+        conversationKind: state.conversation.conversationKind,
+        agentSlug: state.agent?.slug
+      }
+    }));
+  }
+
+  public async sendSyntheticConversationMessage(chat: Chat, text: string) {
+    const target = chat.syntheticConversationTarget;
+    const conversationId = target?.conversationId?.trim();
+    if(!conversationId) {
+      return false;
+    }
+
+    await sendConversationMessage(conversationId, text);
+    if(this.shouldUseTelegramChatConversationSurface()) {
+      await this.openTelegramChatConversationSurface(target, false);
+    } else if(this.shouldUseStaticConversationSurface()) {
+      await this.openStaticConversationSurface(target, false);
+    } else {
+      await this.openConversationSurface(target, false);
+    }
+    return true;
   }
 
   private init() {
