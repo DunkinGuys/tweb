@@ -462,7 +462,7 @@ export class AppSidebarLeft extends SidebarSlider {
   public onCollapsedChange(canShowCtrlFTip = false) {
     this.chatListContainer.parentElement.classList.toggle('fade', this.isCollapsed());
     this.chatListContainer.parentElement.classList.toggle('zoom-fade', !this.isCollapsed());
-    appDialogsManager.xd.toggleAvatarUnreadBadges(this.isCollapsed(), undefined);
+    appDialogsManager.xd?.toggleAvatarUnreadBadges(this.isCollapsed(), undefined);
 
     const [hasFoldersSidebar] = useHasFoldersSidebar();
 
@@ -568,7 +568,7 @@ export class AppSidebarLeft extends SidebarSlider {
           );
           sidebarPlaceholder.classList.remove('keep-active');
 
-          appDialogsManager.xd.toggleAvatarUnreadBadges(true, undefined);
+          appDialogsManager.xd?.toggleAvatarUnreadBadges(true, undefined);
           this.buttonsContainer.classList.remove('force-static');
           this.buttonsContainer.classList.remove('is-visible');
           this.buttonsContainer.style.transition = 'none';
