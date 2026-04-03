@@ -13,8 +13,7 @@ async function onFirstMount() {
   if(existingToken) {
     try {
       await fetchMe(existingToken);
-      const pagePlatformIm = (await import('./pagePlatformIm')).default;
-      await pagePlatformIm.mount();
+      redirectToPlatformIm();
       return;
     } catch(err) {
       console.warn('Platform session bootstrap failed, clearing token', err);
@@ -103,8 +102,7 @@ async function onFirstMount() {
 
       setPlatformSessionToken(result.session.sessionToken);
       setPlatformCurrentUser(result.user ?? null);
-      const pagePlatformIm = (await import('./pagePlatformIm')).default;
-      await pagePlatformIm.mount();
+      redirectToPlatformIm();
     } catch(err) {
       console.error('Platform auth failed', err);
       hint.textContent = err instanceof Error ? err.message : String(err);
@@ -135,10 +133,20 @@ async function onFirstMount() {
   } else {
     googleSignInButton.style.display = 'none';
     hint.textContent = '지금은 개발용 fallback session으로 들어가. 정식 Google 로그인은 배포 설정이 준비되면 켤 거야.';
+    continueButton.addEventListener('click', (event) => {
+      event.preventDefault();
+      void onSubmit();
+    });
   }
   inputWrapper.append(googleSignInButton, fallbackLabel, emailInput, nameInput, continueButton, hint);
   container.append(title, subtitle, inputWrapper);
   page.pageEl.append(container);
+}
+
+function redirectToPlatformIm() {
+  const url = new URL(window.location.href);
+  url.searchParams.set('platform', '1');
+  window.location.href = url.toString();
 }
 
 function styleInput(input: HTMLInputElement) {

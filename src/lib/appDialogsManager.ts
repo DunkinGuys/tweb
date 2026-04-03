@@ -563,8 +563,27 @@ export class AppDialogsManager {
 
   private lazyLoadQueue: LazyLoadQueue;
 
+  private startPlatform(managers: AppManagers) {
+    this.managers = managers;
+    this.stateMiddlewareHelper = getMiddleware();
+    this.lazyLoadQueue = new LazyLoadQueue(5, true);
+
+    PopupElement.MANAGERS = rootScope.managers = managers;
+    appSidebarLeft.construct(managers);
+    appSidebarRight.construct(managers);
+    appImManager.construct(managers);
+
+    appSidebarLeft.inputSearch.setPlaceholder('Search');
+    appSidebarLeft.inputSearch.toggleLoading(false);
+    appSidebarLeft.onCollapsedChange();
+  }
+
   public start() {
     const managers = this.managers = getProxiedManagers();
+    if(document.body.classList.contains('is-platform-im')) {
+      this.startPlatform(managers);
+      return;
+    }
 
     this.contextMenu = new DialogsContextMenu(managers);
     this.stateMiddlewareHelper = getMiddleware();
@@ -754,7 +773,12 @@ export class AppDialogsManager {
     callsController.construct(managers);
     appImManager.construct(managers);
     if(IS_LIVE_STREAM_SUPPORTED) rtmpCallsController.construct(managers);
-    new ConnectionStatusComponent().construct(managers, this.chatsContainer, appSidebarLeft.inputSearch);
+    if(!document.body.classList.contains('is-platform-im')) {
+      new ConnectionStatusComponent().construct(managers, this.chatsContainer, appSidebarLeft.inputSearch);
+    } else {
+      appSidebarLeft.inputSearch.setPlaceholder('Search');
+      appSidebarLeft.inputSearch.toggleLoading(false);
+    }
 
     // start
 

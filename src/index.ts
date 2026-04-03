@@ -540,13 +540,17 @@ function setDocumentLangPackProperties(langPack: LangPackDifference.langPackDiff
     if(platformSessionToken) {
       try {
         await fetchMe(platformSessionToken);
-        const pagePlatformIm = (await import('./pages/pagePlatformIm')).default;
-        await pagePlatformIm.mount();
-        return;
       } catch(err) {
         console.warn('Failed to resume platform session, clearing token', err);
         clearPlatformSessionToken();
+        const pagePlatformAuth = (await import('./pages/pagePlatformAuth')).default;
+        await pagePlatformAuth.mount();
+        return;
       }
+
+      const pagePlatformIm = (await import('./pages/pagePlatformIm')).default;
+      await pagePlatformIm.mount();
+      return;
     }
 
     const pagePlatformAuth = (await import('./pages/pagePlatformAuth')).default;

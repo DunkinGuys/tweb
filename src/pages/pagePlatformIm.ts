@@ -2,12 +2,15 @@ import Page from '@/pages/page';
 import blurActiveElement from '@helpers/dom/blurActiveElement';
 import loadFonts from '@helpers/dom/loadFonts';
 import rootScope from '@lib/rootScope';
-import appImManager from '@lib/appImManager';
 import {fetchConversationSummaries} from '@lib/conversations';
 import {fetchMe} from '@lib/platformAuth';
 import {clearPlatformSessionToken, getPlatformSessionToken, setPlatformCurrentUser} from '@lib/platformSession';
 
 let isPlatformShellMounted = false;
+
+async function getAppImManager() {
+  return (await import('@lib/appImManager')).default;
+}
 
 async function ensurePlatformShellStarted() {
   const [appDialogsManager, recorder] = await Promise.all([
@@ -52,9 +55,11 @@ async function onFirstMount() {
     await ensurePlatformShellStarted();
     isPlatformShellMounted = true;
   } else {
+    const appImManager = await getAppImManager();
     appImManager.ensureCenterMounted();
   }
 
+  const appImManager = await getAppImManager();
   appImManager.ensureCenterMounted();
 
   document.body.classList.remove('has-auth-pages');
@@ -74,10 +79,19 @@ async function openInitialConversation() {
     return;
   }
 
-  await appImManager.openConversationSurface({
-    conversationId: firstConversation.conversationId,
-    agentSlug: firstConversation.agentMeta?.slug
-  }, false);
+  await new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => resolve());
+  });
+
+  const appImManager = await getAppImManager();
+  try {
+    await appImManager.openConversationSurface({
+      conversationId: firstConversation.conversationId,
+      agentSlug: firstConversation.agentMeta?.slug
+    }, false);
+  } catch(err) {
+    console.error('Failed to open initial platform conversation', err);
+  }
 }
 
 const page = new Page('page-chats', false, onFirstMount);

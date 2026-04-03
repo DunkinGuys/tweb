@@ -253,9 +253,12 @@ export class AppImManager extends EventListenerBase<{
 
   public construct(managers: AppManagers) {
     this.managers = managers;
+    const isPlatformMode = document.body.classList.contains('is-platform-im');
     internalLinkProcessor.construct(managers);
 
-    uiNotificationsManager.constructAndStartAll();
+    if(!isPlatformMode) {
+      uiNotificationsManager.constructAndStartAll();
+    }
 
     appMediaPlaybackController.construct(managers);
 
@@ -2130,6 +2133,9 @@ export class AppImManager extends EventListenerBase<{
         return;
       } catch(err) {
         console.warn('Failed to open chat conversation surface', err);
+        if(document.body.classList.contains('is-platform-im')) {
+          return this.openLegacyConversationSurface(options, animate);
+        }
       }
     }
 
@@ -2238,6 +2244,7 @@ export class AppImManager extends EventListenerBase<{
 
     this.chatsSelectTab(this.chat, animate);
     this.selectTab(APP_TABS.CHAT, animate);
+    await this.assertTelegramConversationRendered();
     window.dispatchEvent(new CustomEvent('conversation-opened', {
       detail: {
         conversationId: state.conversationId,
@@ -2245,6 +2252,24 @@ export class AppImManager extends EventListenerBase<{
         agentSlug: state.agent?.slug
       }
     }));
+  }
+
+  private async assertTelegramConversationRendered() {
+    await doubleRaf();
+
+    const chatContainer = this.chat?.container;
+    if(!chatContainer) {
+      throw new Error('Chat container is missing after opening synthetic conversation');
+    }
+
+    const hasTopbar = !!chatContainer.querySelector('.topbar');
+    const hasBubbles = !!chatContainer.querySelector('.bubbles');
+    const hasInput = !!chatContainer.querySelector('.chat-input, .new-message-wrapper, .input-message-container');
+    if(hasTopbar || hasBubbles || hasInput) {
+      return;
+    }
+
+    throw new Error('Synthetic Telegram chat did not render conversation content');
   }
 
   private async openStaticConversationSurface(options: {conversationId?: string, agentSlug?: string}, animate?: boolean) {
@@ -2659,6 +2684,10 @@ export class AppImManager extends EventListenerBase<{
   }
 
   public updateStatus() {
+    if(document.body.classList.contains('is-platform-im')) {
+      return Promise.resolve();
+    }
+
     return this.managers.appUsersManager.updateMyOnlineStatus(this.offline);
   }
 

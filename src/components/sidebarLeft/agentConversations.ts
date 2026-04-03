@@ -171,7 +171,8 @@ export default class AgentConversationsSection {
       wrapOptions: {}
     });
     const row = dialogElement.dom.listEl as HTMLAnchorElement;
-    row.href = `#${conversation.conversationId}`;
+    row.removeAttribute('href');
+    row.setAttribute('role', 'button');
     row.dataset.conversationId = conversation.conversationId;
     row.dataset.participantType = conversation.agentMeta ? 'agent' : 'user';
     row.dataset.peerId = String(peerId);
@@ -207,6 +208,24 @@ export default class AgentConversationsSection {
       }
     }
 
+    const handleOpen = (event: Event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.openConversation(conversation);
+    };
+
+    row.addEventListener('mousedown', (event) => {
+      const mouseEvent = event as MouseEvent;
+      if(mouseEvent.button !== 0) {
+        return;
+      }
+
+      handleOpen(mouseEvent);
+    });
+
+    row.addEventListener('click', handleOpen);
+    attachClickEvent(row, handleOpen);
+
     return row;
   }
 
@@ -230,10 +249,15 @@ export default class AgentConversationsSection {
       return;
     }
 
+    event.preventDefault();
+    this.openConversation(conversation);
+  };
+
+  private openConversation(conversation: ConversationSummary) {
     this.activeConversationId = conversation.conversationId;
     this.renderRows();
     void this.onSelectConversation(conversation);
-  };
+  }
 
   private createAvatar(label: string, kind: 'agent' | 'user') {
     const avatar = document.createElement('div');
