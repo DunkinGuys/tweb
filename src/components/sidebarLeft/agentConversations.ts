@@ -5,8 +5,7 @@ import {
   type ConversationSummary
 } from '@lib/conversations';
 import {resolveConversationSyntheticPeerId} from '@lib/conversationSyntheticMessagesAdapter';
-import findUpTag from '@helpers/dom/findUpTag';
-import appDialogsManager, {DIALOG_LIST_ELEMENT_TAG, DialogElement} from '@lib/appDialogsManager';
+import appDialogsManager, {DialogElement} from '@lib/appDialogsManager';
 
 type AgentConversationsOptions = {
   onSelectConversation: (conversation: ConversationSummary) => void | Promise<void>
@@ -66,8 +65,6 @@ export default class AgentConversationsSection {
     this.listEl.append(this.listContentEl);
     this.container.append(this.currentUserEl, this.statusEl, this.listEl);
 
-    this.listContentEl.addEventListener('mousedown', this.onListMouseDown);
-
     window.addEventListener('conversation-opened', this.onConversationOpened as EventListener);
     window.addEventListener('conversation-updated', this.onConversationUpdated as EventListener);
     window.addEventListener('platform-session-updated', this.onPlatformSessionUpdated as EventListener);
@@ -89,6 +86,15 @@ export default class AgentConversationsSection {
 
       this.setStatus('');
       this.renderRows();
+
+      if(document.body.classList.contains('is-platform-im') && !this.activeConversationId) {
+        const firstConversation = conversations[0];
+        if(firstConversation) {
+          window.requestAnimationFrame(() => {
+            void this.openConversation(firstConversation);
+          });
+        }
+      }
     } catch(err) {
       this.setStatus(err instanceof Error ? err.message : String(err));
     }
@@ -171,7 +177,7 @@ export default class AgentConversationsSection {
       wrapOptions: {}
     });
     const row = dialogElement.dom.listEl as HTMLAnchorElement;
-    row.removeAttribute('href');
+    row.href = '#';
     row.setAttribute('role', 'button');
     row.dataset.conversationId = conversation.conversationId;
     row.dataset.participantType = conversation.agentMeta ? 'agent' : 'user';
@@ -211,10 +217,10 @@ export default class AgentConversationsSection {
     const handleOpen = (event: Event) => {
       event.preventDefault();
       event.stopPropagation();
-      this.openConversation(conversation);
+      void this.openConversation(conversation);
     };
 
-    row.addEventListener('mousedown', (event) => {
+    row.addEventListener('click', (event) => {
       const mouseEvent = event as MouseEvent;
       if(mouseEvent.button !== 0) {
         return;
@@ -223,40 +229,22 @@ export default class AgentConversationsSection {
       handleOpen(mouseEvent);
     });
 
-    row.addEventListener('click', handleOpen);
-    attachClickEvent(row, handleOpen);
+    row.addEventListener('keydown', (event) => {
+      const keyboardEvent = event as KeyboardEvent;
+      if(keyboardEvent.key !== 'Enter' && keyboardEvent.key !== ' ') {
+        return;
+      }
+
+      handleOpen(keyboardEvent);
+    });
 
     return row;
   }
 
-  private onListMouseDown = (event: MouseEvent) => {
-    if(event.button !== 0) {
-      return;
-    }
-
-    const row = findUpTag(event.target, DIALOG_LIST_ELEMENT_TAG) as HTMLAnchorElement;
-    if(!row) {
-      return;
-    }
-
-    const conversationId = row.dataset.conversationId?.trim();
-    if(!conversationId) {
-      return;
-    }
-
-    const conversation = this.conversations.find((item) => item.conversationId === conversationId);
-    if(!conversation) {
-      return;
-    }
-
-    event.preventDefault();
-    this.openConversation(conversation);
-  };
-
-  private openConversation(conversation: ConversationSummary) {
+  private async openConversation(conversation: ConversationSummary) {
     this.activeConversationId = conversation.conversationId;
     this.renderRows();
-    void this.onSelectConversation(conversation);
+    await this.onSelectConversation(conversation);
   }
 
   private createAvatar(label: string, kind: 'agent' | 'user') {

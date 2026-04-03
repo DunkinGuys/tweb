@@ -251,14 +251,44 @@ export class AppImManager extends EventListenerBase<{
     return this.chats[this.chats.length - 1];
   }
 
-  public construct(managers: AppManagers) {
+  private constructPlatform(managers: AppManagers) {
     this.managers = managers;
-    const isPlatformMode = document.body.classList.contains('is-platform-im');
     internalLinkProcessor.construct(managers);
 
-    if(!isPlatformMode) {
-      uiNotificationsManager.constructAndStartAll();
+    this.log = logger('IM', LogTypes.Log | LogTypes.Warn | LogTypes.Debug | LogTypes.Error);
+    this.backgroundPromises = {};
+
+    this.selectTab(APP_TABS.CHATLIST);
+
+    this.chatsContainer = document.createElement('div');
+    this.chatsContainer.classList.add('chats-container', 'tabs-container');
+    this.chatsContainer.dataset.animation = 'navigation';
+    this.columnEl.append(this.chatsContainer);
+
+    this.setSettings();
+    rootScope.addEventListener('settings_updated', this.setSettings);
+
+    themeController.AppBackgroundTab = AppBackgroundTab;
+    this.applyCurrentTheme({noSetTheme: true});
+
+    mediaSizes.addEventListener('changeScreen', (from, to) => {
+      if(document.body.classList.contains(LEFT_COLUMN_ACTIVE_CLASSNAME) &&
+        document.body.classList.contains(RIGHT_COLUMN_ACTIVE_CLASSNAME)) {
+        appSidebarRight.toggleSidebar(false);
+      }
+    });
+  }
+
+  public construct(managers: AppManagers) {
+    const isPlatformMode = document.body.classList.contains('is-platform-im');
+    if(isPlatformMode) {
+      this.constructPlatform(managers);
+      return;
     }
+
+    this.managers = managers;
+    internalLinkProcessor.construct(managers);
+    uiNotificationsManager.constructAndStartAll();
 
     appMediaPlaybackController.construct(managers);
 
@@ -820,6 +850,8 @@ export class AppImManager extends EventListenerBase<{
       return;
     }
 
+    const isPlatformMode = document.body.classList.contains('is-platform-im');
+
     if(this.chatsContainer && !this.chatsContainer.parentElement) {
       this.columnEl.append(this.chatsContainer);
     }
@@ -828,7 +860,7 @@ export class AppImManager extends EventListenerBase<{
       return;
     }
 
-    if(!this.chats.length) {
+    if(!this.chats.length && !isPlatformMode) {
       this.createNewChat();
     }
 
@@ -2200,12 +2232,12 @@ export class AppImManager extends EventListenerBase<{
         return true;
       }
 
-      if(url.searchParams.get('platform_static') === '1') {
+      if(document.body.classList.contains('is-platform-im')) {
         return false;
       }
 
-      if(document.body.classList.contains('is-platform-im')) {
-        return true;
+      if(url.searchParams.get('platform_static') === '1') {
+        return false;
       }
 
       return window.location.hostname === 'mvp.luminite.io';

@@ -13,16 +13,13 @@ async function getAppImManager() {
 }
 
 async function ensurePlatformShellStarted() {
-  const [appDialogsManager, recorder] = await Promise.all([
+  const [appDialogsManager] = await Promise.all([
     import('@lib/appDialogsManager'),
-    import('../vendor/recorder.min.js'),
-    loadFonts(),
-    'requestVideoFrameCallback' in HTMLVideoElement.prototype ? Promise.resolve() : import('../helpers/dom/requestVideoFrameCallbackPolyfill')
-  ]).then(([dialogsManager, recorderModule]) => {
-    return [dialogsManager.default, recorderModule.default] as const;
+    loadFonts()
+  ]).then(([dialogsManager]) => {
+    return [dialogsManager.default] as const;
   });
 
-  (window as any).Recorder = recorder;
   appDialogsManager.start();
 }
 
