@@ -567,6 +567,18 @@ export class AppDialogsManager {
     this.managers = managers;
     this.stateMiddlewareHelper = getMiddleware();
     this.lazyLoadQueue = new LazyLoadQueue(5, true);
+    this.onListLengthChange = () => Promise.resolve();
+
+    // platform에서는 Telegram 본체 filter/dialog 시스템을 쓰지 않지만,
+    // sidebar·appImManager 내부에서 xd·forumTab 등에 접근하는 경로가 존재한다.
+    // contextMenu·setListClickListener 없이 최소한의 xd stub만 세팅해서
+    // 런타임 크래시를 방지한다.
+    this.setFilterId(FOLDER_ID_ALL);
+    const xd = this.xds[FOLDER_ID_ALL] = new AutonomousDialogList({
+      filterId: FOLDER_ID_ALL,
+      appDialogsManager: this
+    });
+    this.xd = xd;
 
     PopupElement.MANAGERS = rootScope.managers = managers;
     appSidebarLeft.construct(managers);
@@ -808,7 +820,7 @@ export class AppDialogsManager {
   }
 
   public get chatList() {
-    return this.xd.sortedList.list;
+    return this.xd?.sortedList?.list;
   }
 
   public setFilterId(filterId: number) {

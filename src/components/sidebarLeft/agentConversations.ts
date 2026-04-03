@@ -214,28 +214,22 @@ export default class AgentConversationsSection {
       }
     }
 
-    const handleOpen = (event: Event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      void this.openConversation(conversation);
+    const handleOpen = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.openConversation(conversation).catch((err) => {
+        console.error('[AgentConversations] openConversation failed', err);
+      });
     };
 
-    row.addEventListener('click', (event) => {
-      const mouseEvent = event as MouseEvent;
-      if(mouseEvent.button !== 0) {
+    attachClickEvent(row, handleOpen as (e: MouseEvent) => void);
+
+    row.addEventListener('keydown', (e) => {
+      if((e as KeyboardEvent).key !== 'Enter' && (e as KeyboardEvent).key !== ' ') {
         return;
       }
 
-      handleOpen(mouseEvent);
-    });
-
-    row.addEventListener('keydown', (event) => {
-      const keyboardEvent = event as KeyboardEvent;
-      if(keyboardEvent.key !== 'Enter' && keyboardEvent.key !== ' ') {
-        return;
-      }
-
-      handleOpen(keyboardEvent);
+      handleOpen(e);
     });
 
     return row;

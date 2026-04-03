@@ -48,15 +48,14 @@ async function onFirstMount() {
 
   blurActiveElement();
 
+  const appImManager = await getAppImManager();
+
   if(!isPlatformShellMounted) {
     await ensurePlatformShellStarted();
     isPlatformShellMounted = true;
-  } else {
-    const appImManager = await getAppImManager();
-    appImManager.ensureCenterMounted();
   }
 
-  const appImManager = await getAppImManager();
+  // construct 이후 center column이 확실히 마운트되도록 보장
   appImManager.ensureCenterMounted();
 
   document.body.classList.remove('has-auth-pages');

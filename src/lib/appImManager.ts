@@ -2197,7 +2197,15 @@ export class AppImManager extends EventListenerBase<{
       this.chatsContainer.append(this.conversationMainChat.container);
     }
 
-    await this.conversationMainChat.openConversation(options);
+    // conversation 로딩 실패와 무관하게 화면 전환은 항상 수행한다.
+    // openConversation 내부에서 에러를 catch하여 에러 메시지를 표시하므로,
+    // 사용자가 "클릭이 안 먹혔다"고 느끼는 상황을 방지한다.
+    try {
+      await this.conversationMainChat.openConversation(options);
+    } catch(err) {
+      console.error('[AppImManager] openLegacyConversationSurface failed', err);
+    }
+
     this.selectCenterTab(this.conversationMainChat.container, animate);
     this.selectTab(APP_TABS.CHAT, animate);
     window.dispatchEvent(new CustomEvent('conversation-opened', {
