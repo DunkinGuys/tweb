@@ -146,7 +146,25 @@ export class AppSidebarLeft extends SidebarSlider {
     });
   }
 
+  private constructPlatformSidebar(managers: AppManagers) {
+    this.managers = managers;
+    this.chatListContainer = document.getElementById('chatlist-container');
+    this.initAgentConversations();
+
+    this.inputSearch = new InputSearch({oldStyle: true});
+    (this.inputSearch.input as HTMLInputElement).placeholder = ' ';
+    const sidebarHeader = this.sidebarEl.querySelector('.item-main .sidebar-header');
+    sidebarHeader.append(this.inputSearch.container);
+
+    this.inputSearch.setPlaceholder('Search');
+  }
+
   construct(managers: AppManagers) {
+    if(document.body.classList.contains('is-platform-im')) {
+      this.constructPlatformSidebar(managers);
+      return;
+    }
+
     this.managers = managers;
     // this._selectTab(0); // make first tab as default
 
